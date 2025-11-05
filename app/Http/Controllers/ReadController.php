@@ -35,4 +35,25 @@ class ReadController extends Controller
             'data' => $data
         ]);
     }
+
+    public function destroy($id)
+    {
+        $data = User::find($id);
+
+        if (!$data) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Data tidak ditemukan',
+                'data' => null
+            ], 404);
+        }
+
+        $data->delete();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Data berhasil dihapus',
+            'data' => null
+        ]);
+    }
 }
