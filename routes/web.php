@@ -4,7 +4,6 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\ImageController;
 use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\ReadController; // ✅ Tambahkan ReadController
-use App\Http\Controllers\DeleteController; // ✅ Tambahkan DeleteController
 
 /*
 |--------------------------------------------------------------------------
@@ -30,6 +29,3 @@ Route::get('/gallery', [ImageController::class, 'index'])->name('gallery.index')
 // 📖 Fitur Read (Menampilkan data dari database)
 Route::get('/read', [ReadController::class, 'index'])->name('read.index');       // Menampilkan semua data
 Route::get('/read/{id}', [ReadController::class, 'show'])->name('read.show');    // Menampilkan data spesifik by ID
-
-// 🗑️ Fitur Delete (Menghapus data dari database)
-Route::delete('/delete/{id}', [DeleteController::class, 'destroy'])->name('delete.destroy'); // Menghapus data spesifik by ID

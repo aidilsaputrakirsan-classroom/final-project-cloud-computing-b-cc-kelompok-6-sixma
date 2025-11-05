@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+<<<<<<< HEAD
 <html lang="id">
 <head>
     <meta charset="UTF-8">
@@ -28,3 +29,18 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
+=======
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Artrium</title>
+    @vite('resources/css/app.css') 
+</head>
+<body>
+    <div id="app">
+        @yield('content') 
+    </div>
+</body>
+</html>
+>>>>>>> 7f3fdfd399b4612f5c85b825ea29d5c7cf067479
