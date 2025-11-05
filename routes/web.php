@@ -2,30 +2,44 @@
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\ImageController;
-use App\Http\Controllers\CategoryController;
-use App\Http\Controllers\ReadController; // ✅ Tambahkan ReadController
+use App\Http\Controllers\CategoryController; 
+// ❌ Hapus: use App\Http\Controllers\ReadController; 
+// ✅ Tambahkan: use App\Http\Controllers\Auth\AuthenticatedSessionController; (jika belum merge)
 
 /*
 |--------------------------------------------------------------------------
 | Web Routes
 |--------------------------------------------------------------------------
-|
-| Ini adalah rute utama project Laravel kamu.
-| Digabung dengan fitur Upload Gambar, Galeri, dan Read (CRUD Read).
-|
 */
 
-Route::get('/', function () {
-    return view('welcome');
+Route::get('/', [ImageController::class, 'index'])->name('gallery.index'); // ✅ Gunakan Galeri sebagai Homepage
+
+// ========================================================
+// 🖼️ ROUTES CRUD GAMBAR (Satu Entitas)
+// Gunakan resource routing atau penamaan konsisten
+// ========================================================
+
+Route::middleware(['auth'])->group(function () {
+    // CREATE GAMBAR
+    Route::get('/images/create', [ImageController::class, 'create'])->name('images.create');
+    Route::post('/images', [ImageController::class, 'store'])->name('images.store');
+    
+    // UPDATE GAMBAR (Anda) - Gunakan Route Model Binding
+    // {image} adalah ID gambar yang dikirim ke controller
+    Route::get('/images/{image}/edit', [ImageController::class, 'edit'])->name('images.edit'); 
+    Route::patch('/images/{image}', [ImageController::class, 'update'])->name('images.update'); 
+    
+    // DELETE GAMBAR (Daffa)
+    Route::delete('/images/{image}', [ImageController::class, 'destroy'])->name('images.destroy');
 });
 
-// 🖼️ Fitur Upload Gambar
-Route::get('/images/create', [ImageController::class, 'create'])->name('images.create');
-Route::post('/images', [ImageController::class, 'store'])->name('images.store');
 
-// 🖼️ Halaman Galeri
-Route::get('/gallery', [ImageController::class, 'index'])->name('gallery.index');
+// 📖 READ GAMBAR (Publik)
+// Karena Read hanya menampilkan, tidak perlu middleware 'auth'
+Route::get('/images', [ImageController::class, 'index'])->name('images.index'); 
+Route::get('/images/{id}', [ImageController::class, 'show'])->name('images.show'); 
+// ❌ Hapus routes lama: /read dan /read/{id}
 
-// 📖 Fitur Read (Menampilkan data dari database)
-Route::get('/read', [ReadController::class, 'index'])->name('read.index');       // Menampilkan semua data
-Route::get('/read/{id}', [ReadController::class, 'show'])->name('read.show');    // Menampilkan data spesifik by ID
+// --------------------------------------------------------
+// Jika sudah ada Routes Login/Register, biarkan di sini
+// --------------------------------------------------------
