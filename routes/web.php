@@ -1,3 +1,5 @@
+<?php
+
 // Pastikan baris-baris ini ada di bagian atas file routes/web.php
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\RegisteredUserController;
