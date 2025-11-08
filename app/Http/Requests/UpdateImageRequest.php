@@ -6,22 +6,26 @@ use Illuminate\Foundation\Http\FormRequest;
 
 class UpdateImageRequest extends FormRequest
 {
+    /**
+     * Otorisasi penuh akan dilakukan di Controller (untuk akses Supabase REST)
+     */
     public function authorize(): bool
     {
-        // PENTING: Karena kita menggunakan Supabase REST, kita akan 
-        // melakukan otorisasi penuh di Controller, dan me-return true di sini
-        // untuk menghindari error. Logika keamanan utamanya ada di Controller.
         return true; 
     }
 
+    /**
+     * Aturan validasi untuk proses update
+     */
     public function rules(): array
     {
         return [
-            'title' => ['required', 'string', 'max:150'],
+            // Semua field wajib, kecuali file gambar
+            'title' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
             'location' => ['required', 'string', 'max:255'],
-            'category_id' => ['required'], // Asumsi ID category digunakan
-            'image' => ['nullable', 'file', 'mimes:jpeg,png,jpg,gif', 'max:5000'], // max 5MB
+            'category_id' => ['required', 'integer'], 
+            'image' => ['nullable', 'image', 'mimes:jpg,jpeg,png', 'max:2048'], // file gambar optional (nullable)
         ];
     }
 }
