@@ -1,48 +1,47 @@
 @extends('layouts.app') 
 
+@section('title', 'Login')
+
 @section('content')
-<div class="flex items-center justify-center min-h-screen bg-gray-900" style="background-image: url('{{ asset('images/login-bg.jpg') }}'); background-size: cover;">
-    <div class="w-full max-w-sm bg-gray-800 p-8 rounded-lg shadow-2xl">
-        
-        <h2 class="text-3xl font-bold text-center text-yellow-400 mb-2">Selamat Datang Kembali!</h2>
-        <p class="text-center text-gray-400 text-sm mb-6">Masuk ke akun Anda untuk menjelajahi dunia melalui karya.</p>
-
-        <form method="POST" action="{{ route('login') }}">
-            @csrf
-
-            <div class="mb-4">
-                <input id="email" type="email" name="email" value="{{ old('email') }}" required autofocus
-                    class="w-full px-4 py-3 bg-gray-700 text-white border border-gray-600 rounded-md focus:outline-none focus:border-yellow-400 placeholder-gray-500"
-                    placeholder="Masukkan Email">
-                @error('email')
-                    <span class="text-red-400 text-xs mt-1">{{ $message }}</span>
-                @enderror
+<div class="row justify-content-center mt-5">
+    <div class="col-md-5">
+        <div class="card shadow-lg border-0">
+            <div class="card-header bg-warning text-center">
+                <h3 class="fw-bold mb-0">Selamat Datang Kembali!</h3>
+                <small class="text-dark">Masuk ke akun Anda.</small>
             </div>
+            <div class="card-body">
+                <form method="POST" action="{{ route('login') }}">
+                    @csrf
 
-            <div class="mb-4">
-                <input id="password" type="password" name="password" required
-                    class="w-full px-4 py-3 bg-gray-700 text-white border border-gray-600 rounded-md focus:outline-none focus:border-yellow-400 placeholder-gray-500"
-                    placeholder="Masukkan Password">
-                @error('password')
-                    <span class="text-red-400 text-xs mt-1">{{ $message }}</span>
-                @enderror
+                    <div class="mb-3">
+                        <label for="email" class="form-label">Email</label>
+                        <input id="email" type="email" name="email" value="{{ old('email') }}" required autofocus
+                            class="form-control @error('email') is-invalid @enderror">
+                        @error('email')
+                            <div class="invalid-feedback">{{ $message }}</div>
+                        @enderror
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="password" class="form-label">Password</label>
+                        <input id="password" type="password" name="password" required
+                            class="form-control @error('password') is-invalid @enderror">
+                        @error('password')
+                            <div class="invalid-feedback">{{ $message }}</div>
+                        @enderror
+                    </div>
+
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-warning fw-bold">Masuk</button>
+                    </div>
+                </form>
+                
+                <p class="text-center text-muted mt-3 mb-0">
+                    Belum punya akun? <a href="{{ route('register') }}" class="text-warning fw-bold">Daftar Sekarang</a>
+                </p>
             </div>
-
-            <div class="text-right mb-6">
-                <a href="#" class="text-sm text-yellow-400 hover:text-yellow-300">Forgot Password?</a>
-            </div>
-
-            <button type="submit"
-                class="w-full py-3 bg-yellow-500 text-gray-900 font-bold rounded-md hover:bg-yellow-600 transition duration-200">
-                Masuk
-            </button>
-        </form>
-        
-        <p class="text-center text-gray-400 text-sm mt-4">
-            Belum punya akun? 
-            <a href="{{ route('register') }}" class="text-yellow-400 font-bold hover:text-yellow-300">Daftar sekarang</a>
-        </p>
-
+        </div>
     </div>
 </div>
 @endsection

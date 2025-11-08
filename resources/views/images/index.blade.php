@@ -1,78 +1,77 @@
 @extends('layouts.app') 
 
+@section('title', 'Galeri Foto Alam')
+
 @section('content')
 
-<div class="container mx-auto p-6">
-    
-    <div class="mb-8 flex justify-between items-center">
-        <h1 class="text-3xl font-bold text-gray-800 dark:text-gray-100">Galeri Foto Alam</h1>
+    <div class="bg-light p-5 mb-5 text-center border rounded">
+        <h1 class="display-5 fw-bold text-dark mb-3">Temukan Bidikan Alam.</h1>
+        <p class="lead text-muted mx-auto" style="max-width: 600px;">
+            Dari gunung hingga lautan, setiap foto menyimpan kisah tentang dunia yang menakjubkan.
+        </p>
         
-        @auth
-            <a href="{{ route('images.create') }}" 
-               class="px-4 py-2 bg-yellow-500 text-gray-900 font-semibold rounded-lg hover:bg-yellow-600 transition duration-200">
-                + Unggah Karya Baru
-            </a>
-        @endauth
-        
-        {{-- Form Search akan ditaruh di sini oleh Kirana --}}
+        <form action="{{ route('gallery.index') }}" method="GET" class="d-flex justify-content-center mt-4 mx-auto" style="max-width: 600px;">
+            <input type="text" name="search" class="form-control me-2" placeholder="Cari Inspirasimu...">
+            
+            <select name="category" class="form-select me-2">
+                <option value="">Semua Kategori</option>
+                {{-- Logic Loop Kategori --}}
+                @foreach ($categories as $category)
+                    @if (is_array($category)) 
+                        <option value="{{ $category['id'] }}" 
+                                {{ request('category') == $category['id'] ? 'selected' : '' }}>
+                            {{ $category['name'] }}
+                        </option>
+                    @endif
+                @endforeach
+            </select>
+            <button type="submit" class="btn btn-warning">Filter</button>
+        </form>
     </div>
 
-    @if (session('success'))
-        <div class="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative mb-4">
-            {{ session('success') }}
-        </div>
-    @endif
-    @if (session('error'))
-        <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4">
-            {{ session('error') }}
-        </div>
-    @endif
+    <h2 class="mb-4 text-center">Karya Alam dari Lensa Mereka</h2>
 
-
-    @if (empty($images))
-        <p class="text-center text-gray-500 mt-10">Belum ada karya yang diunggah. Jadilah yang pertama!</p>
-    @else
-        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-            
-            @foreach ($images as $image)
-                {{-- 🔴 PERBAIKAN Wajib: Cek apakah item adalah array sebelum mengakses key --}}
-                @if (is_array($image) && isset($image['id']))
-                <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg overflow-hidden transition transform hover:scale-[1.02]">
+    <div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-lg-4 g-4 mt-4">
+        
+        @forelse ($images as $image)
+            @if (is_array($image) && isset($image['id']))
+            <div class="col">
+                <div class="card h-100 shadow-sm border-0">
                     
                     <a href="{{ route('images.show', $image['id']) }}">
                         <img src="{{ env('SUPABASE_URL') }}/storage/v1/object/public/images/{{ $image['image_path'] }}" 
                              alt="{{ $image['title'] }}" 
-                             class="w-full h-auto object-cover"
-                             style="max-height: 400px;">
+                             class="card-img-top"
+                             loading="lazy">
                     </a>
 
-                    <div class="p-4">
-                        <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-1 truncate">{{ $image['title'] }}</h3>
+                    <div class="card-body">
+                        <h5 class="card-title text-truncate">{{ $image['title'] }}</h5>
+                        <p class="card-text text-muted mb-1"><small>📍 {{ $image['location'] ?? 'N/A' }} | 👤 {{ $image['user']['name'] ?? 'Anonim' }}</small></p>
                         
-                        <p class="text-sm text-gray-500 dark:text-gray-400">
-                            📍 {{ $image['location'] ?? 'Lokasi Tidak Diketahui' }} | 
-                            #{{ $image['category'] ?? 'General' }}
-                        </p>
-                        
+                        {{-- Aksi CRUD (Edit/Delete) hanya jika login dan pemilik --}}
                         @auth
                             @if (Auth::id() == $image['user_id'])
-                            <div class="mt-3 flex space-x-2">
-                                <a href="{{ route('images.edit', $image['id']) }}" class="text-blue-500 hover:text-blue-600 text-sm">Edit</a>
-                                
-                                <form action="{{ route('images.destroy', $image['id']) }}" method="POST">
+                            <div class="d-flex justify-content-between mt-3">
+                                <a href="{{ route('images.edit', $image['id']) }}" class="btn btn-sm btn-primary">Edit</a>
+                                {{-- Form Delete Daffa --}}
+                                <form method="POST" action="{{ route('images.destroy', $image['id']) }}" onsubmit="return confirm('Yakin ingin menghapus karya ini?');">
                                     @csrf
                                     @method('DELETE')
-                                    <button type="submit" class="text-red-500 hover:text-red-600 text-sm" onclick="return confirm('Yakin ingin menghapus karya ini?')">Hapus</button>
+                                    <button type="submit" class="btn btn-sm btn-danger">Hapus</button>
                                 </form>
                             </div>
                             @endif
                         @endauth
                     </div>
                 </div>
-                @endif {{-- Tutup pengecekan array --}}
-            @endforeach
-        </div>
-    @endif
-</div>
+            </div>
+            @endif
+        @empty
+            <div class="col-12 text-center py-5">
+                <p class="lead text-muted">Belum ada karya yang diunggah. Jadilah yang pertama!</p>
+            </div>
+        @endforelse
+    </div>
 
 @endsection
