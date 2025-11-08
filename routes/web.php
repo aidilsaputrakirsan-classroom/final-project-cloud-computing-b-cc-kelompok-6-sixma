@@ -2,10 +2,9 @@
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\ImageController;
-use App\Http\Controllers\CategoryController;
-use App\Http\Controllers\DeleteController;
-// ❌ Hapus: use App\Http\Controllers\ReadController;
-// ✅ Tambahkan: use App\Http\Controllers\Auth\AuthenticatedSessionController; (jika belum merge)
+use App\Http\Controllers\CategoryController; 
+// Autentikasi sudah di merge ke development, jadi routesnya ada di routes/web.php
+// Jika belum merge, tambahkan routes Login/Register di sini
 
 /*
 |--------------------------------------------------------------------------
@@ -13,34 +12,26 @@ use App\Http\Controllers\DeleteController;
 |--------------------------------------------------------------------------
 */
 
-Route::get('/', [ImageController::class, 'index'])->name('gallery.index'); // ✅ Gunakan Galeri sebagai Homepage
+// Halaman utama (Galeri Publik)
+Route::get('/', [ImageController::class, 'index'])->name('gallery.index'); 
+
+// 📖 READ DETAIL GAMBAR (Publik)
+Route::get('/images/{id}', [ImageController::class, 'show'])->name('images.show'); 
+
 
 // ========================================================
-// 🖼️ ROUTES CRUD GAMBAR (Satu Entitas)
-// Gunakan resource routing atau penamaan konsisten
+// 🖼️ ROUTES CRUD GAMBAR (Hanya Bisa Diakses Setelah Login)
 // ========================================================
-
 Route::middleware(['auth'])->group(function () {
+    
     // CREATE GAMBAR
     Route::get('/images/create', [ImageController::class, 'create'])->name('images.create');
     Route::post('/images', [ImageController::class, 'store'])->name('images.store');
-
-    // UPDATE GAMBAR (Anda) - Gunakan Route Model Binding
-    // {image} adalah ID gambar yang dikirim ke controller
-    Route::get('/images/{image}/edit', [ImageController::class, 'edit'])->name('images.edit');
-    Route::patch('/images/{image}', [ImageController::class, 'update'])->name('images.update');
-
-    // DELETE GAMBAR (Daffa)
-    Route::delete('/images/{image}', [DeleteController::class, 'destroy'])->name('images.destroy');
+    
+    // UPDATE GAMBAR
+    Route::get('/images/{id}/edit', [ImageController::class, 'edit'])->name('images.edit'); 
+    Route::patch('/images/{id}', [ImageController::class, 'update'])->name('images.update'); // PATCH untuk Update
+    
+    // DELETE GAMBAR
+    Route::delete('/images/{id}', [ImageController::class, 'destroy'])->name('images.destroy');
 });
-
-
-// 📖 READ GAMBAR (Publik)
-// Karena Read hanya menampilkan, tidak perlu middleware 'auth'
-Route::get('/images', [ImageController::class, 'index'])->name('images.index');
-Route::get('/images/{id}', [ImageController::class, 'show'])->name('images.show');
-// ❌ Hapus routes lama: /read dan /read/{id}
-
-// --------------------------------------------------------
-// Jika sudah ada Routes Login/Register, biarkan di sini
-// --------------------------------------------------------
