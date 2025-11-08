@@ -14,7 +14,7 @@
             </a>
         @endauth
         
-        {{-- <form action="{{ route('images.index') }}" method="GET"> ... </form> --}}
+        {{-- Form Search akan ditaruh di sini oleh Kirana --}}
     </div>
 
     @if (session('success'))
@@ -35,38 +35,41 @@
         <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
             
             @foreach ($images as $image)
-            <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg overflow-hidden transition transform hover:scale-[1.02]">
-                
-                <a href="{{ route('images.show', $image['id']) }}">
-                    <img src="{{ env('SUPABASE_URL') }}/storage/v1/object/public/images/{{ $image['image_path'] }}" 
-                         alt="{{ $image['title'] }}" 
-                         class="w-full h-auto object-cover"
-                         style="max-height: 400px;">
-                </a>
+                {{-- 🔴 PERBAIKAN Wajib: Cek apakah item adalah array sebelum mengakses key --}}
+                @if (is_array($image) && isset($image['id']))
+                <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg overflow-hidden transition transform hover:scale-[1.02]">
+                    
+                    <a href="{{ route('images.show', $image['id']) }}">
+                        <img src="{{ env('SUPABASE_URL') }}/storage/v1/object/public/images/{{ $image['image_path'] }}" 
+                             alt="{{ $image['title'] }}" 
+                             class="w-full h-auto object-cover"
+                             style="max-height: 400px;">
+                    </a>
 
-                <div class="p-4">
-                    <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-1 truncate">{{ $image['title'] }}</h3>
-                    
-                    <p class="text-sm text-gray-500 dark:text-gray-400">
-                        📍 {{ $image['location'] ?? 'Lokasi Tidak Diketahui' }} | 
-                        #{{ $image['category'] ?? 'General' }}
-                    </p>
-                    
-                    @auth
-                        @if (Auth::id() == $image['user_id'])
-                        <div class="mt-3 flex space-x-2">
-                            <a href="{{ route('images.edit', $image['id']) }}" class="text-blue-500 hover:text-blue-600 text-sm">Edit</a>
-                            
-                            <form action="{{ route('images.destroy', $image['id']) }}" method="POST">
-                                @csrf
-                                @method('DELETE')
-                                <button type="submit" class="text-red-500 hover:text-red-600 text-sm" onclick="return confirm('Yakin ingin menghapus karya ini?')">Hapus</button>
-                            </form>
-                        </div>
-                        @endif
-                    @endauth
+                    <div class="p-4">
+                        <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-1 truncate">{{ $image['title'] }}</h3>
+                        
+                        <p class="text-sm text-gray-500 dark:text-gray-400">
+                            📍 {{ $image['location'] ?? 'Lokasi Tidak Diketahui' }} | 
+                            #{{ $image['category'] ?? 'General' }}
+                        </p>
+                        
+                        @auth
+                            @if (Auth::id() == $image['user_id'])
+                            <div class="mt-3 flex space-x-2">
+                                <a href="{{ route('images.edit', $image['id']) }}" class="text-blue-500 hover:text-blue-600 text-sm">Edit</a>
+                                
+                                <form action="{{ route('images.destroy', $image['id']) }}" method="POST">
+                                    @csrf
+                                    @method('DELETE')
+                                    <button type="submit" class="text-red-500 hover:text-red-600 text-sm" onclick="return confirm('Yakin ingin menghapus karya ini?')">Hapus</button>
+                                </form>
+                            </div>
+                            @endif
+                        @endauth
+                    </div>
                 </div>
-            </div>
+                @endif {{-- Tutup pengecekan array --}}
             @endforeach
         </div>
     @endif
