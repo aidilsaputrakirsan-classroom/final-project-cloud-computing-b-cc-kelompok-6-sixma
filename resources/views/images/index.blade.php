@@ -15,6 +15,11 @@
             <div class="hidden md:flex space-x-8">
                 <a href="{{ route('home') }}" class="hover:text-yellow-400 transition">Home</a>
                 <a href="{{ route('gallery.index') }}" class="text-yellow-400 font-semibold transition">Explore</a>
+                
+                {{-- TOMBOL PROFILE BARU --}}
+                @auth
+                    <a href="{{ route('profile.show') }}" class="hover:text-yellow-400 transition">Profile</a>
+                @endauth
             </div>
             
             <div class="flex space-x-3 items-center">
@@ -77,6 +82,12 @@
 
                     <select name="category" class="w-full md:w-60 px-5 py-3 rounded-full bg-black text-white border border-gray-700 focus:outline-none focus:ring-2 focus:ring-yellow-400">
                         <option value="">Semua Kategori</option>
+                        {{-- LOOP KATEGORI DARI CONTROLLER --}}
+                        {{-- @foreach ($categories as $category)
+                            <option value="{{ $category['id'] ?? '' }}" {{ request('category') == ($category['id'] ?? '') ? 'selected' : '' }}>
+                                {{ $category['name'] ?? 'N/A' }}
+                            </option>
+                        @endforeach --}}
                         <option value="1">Gunung</option>
                         <option value="2">Laut</option>
                         <option value="3">Hutan</option>
@@ -94,8 +105,12 @@
             
             <h2 class="text-3xl font-bold text-center mb-8 text-yellow-400">Karya Terbaru</h2>
             
+            {{-- Menggunakan grid seragam 4 kolom --}}
             <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
                 
+                {{-- LOOP DATA DARI DATABASE DI SINI --}}
+                {{-- @foreach ($images as $image) ... @endforeach --}}
+
                 <div class="relative group overflow-hidden rounded-lg bg-gray-900 border border-gray-800 hover:border-yellow-400 transition">
                     <img src="https://images.unsplash.com/photo-1543787321-c452e6977799?w=400" alt="Pantai Lamaru" class="w-full h-48 object-cover transform group-hover:scale-[1.05] transition duration-500">
                     <div class="p-4">
@@ -170,7 +185,9 @@
                     </div>
                 </div>
                 
-                </div>
+                {{-- Tambahkan 6 Card Placeholder lagi di sini menggunakan struktur yang sama (jika diperlukan untuk mengisi layout) --}}
+
+            </div>
             
         </div>
     </main>
