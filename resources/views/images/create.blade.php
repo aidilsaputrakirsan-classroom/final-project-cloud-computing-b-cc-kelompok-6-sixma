@@ -24,8 +24,13 @@
             <input type="file" name="image" id="image" class="form-control" required>
         </div>
 
+        <div class="mb-3">
+            <label for="category" class="form-label">Kategori</label>
+            <input type="text" name="category" id="category" class="form-control" placeholder="Contoh: Nature, Urban, Portrait, dll">
+        </div>
+
         <button type="submit" class="btn btn-success">Upload</button>
-        <a href="{{ route('gallery') }}" class="btn btn-secondary">Kembali</a>
+        <a href="{{ route('gallery.index') }}" class="btn btn-secondary">Kembali</a>
     </form>
 </div>
 
