@@ -1,305 +1,182 @@
-@extends('layouts.app')
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Artrium - Galeri Foto Alam</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-black text-white min-h-screen pt-20"> 
+    
+    <nav class="fixed top-0 w-full bg-black bg-opacity-90 z-50 px-6 py-4 border-b border-gray-800">
+        <div class="max-w-7xl mx-auto flex items-center justify-between">
+            <div class="text-2xl font-bold">Artrium</div>
+            
+            <div class="hidden md:flex space-x-8">
+                <a href="{{ route('home') }}" class="hover:text-yellow-400 transition">Home</a>
+                <a href="{{ route('gallery.index') }}" class="text-yellow-400 font-semibold transition">Explore</a>
+            </div>
+            
+            <div class="flex space-x-3 items-center">
+                @auth
+                    {{-- TOMBOL UNGGAH KARYA --}}
+                    <a href="{{ route('images.create') }}" 
+                       class="px-4 py-2 bg-yellow-400 text-black rounded-full hover:bg-yellow-500 transition font-semibold text-sm">
+                       Unggah Karya
+                    </a>
+                    
+                    {{-- Teks Halo, [Nama User] --}}
+                    <span class="text-sm text-gray-400">
+                        Halo, {{ Auth::user()->name ?? 'User' }} 
+                    </span>
 
-@section('title', 'Galeri Foto Alam')
-
-@section('content')
-<style>
-    /* ======== TEMA UTAMA ======== */
-    body {
-        background-color: #0A0A0A !important;
-        color: #f8f9fa !important;
-        font-family: 'Poppins', sans-serif;
-    }
-
-    /* ======== HERO SECTION ======== */
-    .hero-section {
-        background: linear-gradient(160deg, #111111, #1a1a1a);
-        border: 1px solid rgba(246, 199, 77, 0.25);
-        border-radius: 24px;
-        padding: 60px 40px;
-        text-align: center;
-        color: #f8f9fa;
-        box-shadow: 0 0 40px rgba(246, 199, 77, 0.1);
-        transition: all 0.4s ease;
-        margin-top: 20px;
-    }
-
-    .hero-section:hover {
-        box-shadow: 0 0 50px rgba(246, 199, 77, 0.25);
-        transform: translateY(-3px);
-    }
-
-    .hero-section h1 {
-        color: #F6C74D;
-        font-weight: 800;
-        font-size: 2.8rem;
-        letter-spacing: 1px;
-    }
-
-    .hero-section p {
-        color: #d0d0d0;
-        font-size: 1.1rem;
-        max-width: 650px;
-        margin: 10px auto 25px;
-    }
-
-    /* ======== FORM CARI ======== */
-    .hero-section form {
-        max-width: 700px;
-        margin: 0 auto;
-    }
-
-    .form-control,
-    .form-select {
-        background-color: #121212;
-        color: #fff;
-        border: 1px solid #2e2e2e;
-        border-radius: 12px;
-        transition: all 0.3s ease;
-        height: 45px;
-    }
-
-    .form-control:focus,
-    .form-select:focus {
-        border-color: #F6C74D;
-        box-shadow: 0 0 10px rgba(246, 199, 77, 0.4);
-    }
-
-    .form-control::placeholder {
-        color: #c9a94a;
-    }
-
-    .btn-warning {
-        background-color: #F6C74D;
-        border: none;
-        color: #0A0A0A;
-        font-weight: 700;
-        border-radius: 12px;
-        transition: all 0.3s ease;
-        padding: 0 25px;
-        height: 45px;
-    }
-
-    .btn-warning:hover {
-        background-color: #FFD85C;
-        box-shadow: 0 0 20px rgba(246, 199, 77, 0.5);
-    }
-
-    .btn-outline-secondary {
-        border-color: #555;
-        color: #ccc;
-        border-radius: 12px;
-        height: 45px;
-        transition: 0.3s;
-    }
-
-    .btn-outline-secondary:hover {
-        background-color: #2c2c2c;
-        color: #fff;
-        border-color: #777;
-    }
-
-    /* ======== HASIL PENCARIAN ======== */
-    .search-info small {
-        color: #c9a94a;
-        font-size: 0.95rem;
-    }
-
-    /* ======== GRID GALERI ======== */
-    h2 {
-        color: #F6C74D;
-        font-weight: 700;
-        text-align: center;
-        margin-top: 70px;
-        margin-bottom: 30px;
-        letter-spacing: 0.8px;
-        font-size: 1.8rem;
-    }
-
-    .card {
-        background: #151515;
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        border-radius: 15px;
-        color: #fff;
-        transition: all 0.35s ease;
-        overflow: hidden;
-    }
-
-    .card:hover {
-        transform: translateY(-8px);
-        box-shadow: 0 0 25px rgba(246, 199, 77, 0.3);
-    }
-
-    .card img {
-        transition: all 0.3s ease;
-    }
-
-    .card:hover img {
-        transform: scale(1.05);
-        opacity: 0.9;
-    }
-
-    .card-title {
-        color: #F6C74D;
-        font-weight: 600;
-        margin-bottom: 8px;
-    }
-
-    .card-text small {
-        color: #aaa;
-    }
-
-    /* ======== TOMBOL DALAM CARD ======== */
-    .btn-outline-warning {
-        border-color: #F6C74D;
-        color: #F6C74D;
-        border-radius: 8px;
-        transition: all 0.3s ease;
-    }
-
-    .btn-outline-warning:hover {
-        background-color: #F6C74D;
-        color: #0A0A0A;
-    }
-
-    .btn-outline-primary {
-        border-color: #777;
-        color: #ccc;
-        border-radius: 8px;
-        transition: all 0.3s ease;
-    }
-
-    .btn-outline-primary:hover {
-        background-color: #2e2e2e;
-        color: #fff;
-    }
-
-    /* ======== PESAN KOSONG ======== */
-    .lead.text-muted {
-        color: #bbb !important;
-    }
-
-    .btn-primary {
-        background-color: #F6C74D;
-        border: none;
-        color: #0A0A0A;
-        font-weight: 600;
-        border-radius: 10px;
-    }
-
-    .btn-primary:hover {
-        background-color: #FFD85C;
-    }
-
-    /* ======== FLOATING UPLOAD BUTTON ======== */
-    .floating-upload-btn {
-        position: fixed;
-        bottom: 30px;
-        right: 30px;
-        background: #F6C74D;
-        color: #fff;
-        font-size: 2.2rem;
-        font-weight: 700;
-        width: 60px;
-        height: 60px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        border-radius: 50%;
-        box-shadow: 0 0 20px rgba(246, 199, 77, 0.4);
-        transition: all 0.3s ease;
-        z-index: 999;
-        text-decoration: none;
-    }
-
-    .floating-upload-btn:hover {
-        background: #FFD85C;
-        transform: scale(1.1);
-        box-shadow: 0 0 30px rgba(246, 199, 77, 0.6);
-        color: #fff;
-    }
-</style>
-
-<div class="hero-section">
-    <h1>Temukan Bidikan Alam.</h1>
-    <p>Dari gunung hingga lautan, setiap foto menyimpan kisah tentang dunia yang menakjubkan.</p>
-
-    <form action="{{ route('gallery.index') }}" method="GET" class="d-flex justify-content-center flex-wrap gap-2">
-        <input type="text" name="search" class="form-control me-2 flex-grow-1" placeholder="Cari Inspirasimu..." value="{{ request('search') }}">
-        
-        <select name="category" class="form-select me-2" style="max-width: 200px;">
-            <option value="">Semua Kategori</option>
-            @foreach($categories as $category)
-                <option value="{{ $category }}" {{ request('category') == $category ? 'selected' : '' }}>
-                    {{ $category }}
-                </option>
-            @endforeach
-        </select>
-        
-        <button type="submit" class="btn btn-warning me-2">Cari</button>
-        <a href="{{ route('gallery.index') }}" class="btn btn-outline-secondary">Reset</a>
-    </form>
-
-    @if(request()->has('search') || request()->has('category'))
-        <div class="mt-3 search-info">
-            <small>
-                Hasil pencarian:
-                @if(request('search')) "{{ request('search') }}" @endif
-                @if(request('search') && request('category')) dan @endif
-                @if(request('category')) kategori "{{ request('category') }}" @endif
-                ({{ count($images) }} hasil)
-            </small>
-        </div>
-    @endif
-</div>
-
-<h2>Karya Alam dari Lensa Mereka</h2>
-
-<div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-lg-4 g-4 mt-4">
-    @forelse($images as $image)
-        <div class="col">
-            <div class="card h-100 shadow-sm border-0">
-                <a href="{{ route('images.show', $image['id']) }}">
-                    <img src="{{ $image['image_url'] }}" 
-                         alt="{{ $image['title'] }}" 
-                         class="card-img-top" 
-                         loading="lazy"
-                         style="height: 230px; object-fit: cover;"
-                         onerror="this.src='https://via.placeholder.com/300x200?text=Image+Error'">
-                </a>
-
-                <div class="card-body text-center">
-                    <h5 class="card-title text-truncate">{{ $image['title'] }}</h5>
-                    <p class="card-text mb-2">
-                        <small>
-                            @if(isset($image['category']) && !empty($image['category']))
-                                🏷️ {{ $image['category'] }} |
-                            @endif
-                            📅 {{ \Carbon\Carbon::parse($image['created_at'])->format('d M Y') }}
-                        </small>
-                    </p>
-                    <div class="d-flex justify-content-center gap-2">
-                        <a href="{{ route('images.edit', $image['id']) }}" class="btn btn-sm btn-outline-warning px-3">Edit</a>
-                        <a href="{{ route('images.show', $image['id']) }}" class="btn btn-sm btn-outline-primary px-3">View</a>
-                    </div>
-                </div>
+                    <form action="{{ route('logout') }}" method="POST">
+                        @csrf
+                        <button type="submit" 
+                            class="px-6 py-2 border border-white rounded-full hover:bg-white hover:text-black transition text-sm">
+                            Logout
+                        </button>
+                    </form>
+                @else
+                    <a href="{{ route('login') }}" 
+                       class="px-6 py-2 bg-yellow-400 text-black rounded-full hover:bg-yellow-500 transition text-sm">
+                        Login
+                    </a>
+                @endauth
             </div>
         </div>
-    @empty
-        <div class="col-12 text-center py-5">
-            <p class="lead text-muted">
-                @if(request()->has('search') || request()->has('category'))
-                    Tidak ada hasil untuk pencarian Anda.
-                @else
-                    Belum ada karya yang diunggah.
-                @endif
-            </p>
-            <a href="{{ route('images.create') }}" class="btn btn-primary">Unggah Karya Pertamamu!</a>
+    </nav>
+    
+    <main class="py-12 px-6">
+        <div class="max-w-7xl mx-auto">
+            
+            <header class="text-center mb-10">
+                <h1 class="text-5xl font-bold mb-2">
+                    Jelajahi <span class="text-yellow-400">Karya Alam</span>
+                </h1>
+                <p class="text-gray-400 text-lg">
+                    Temukan inspirasi dari ribuan bidikan alam dari seluruh penjuru dunia.
+                </p>
+            </header>
+
+            <div class="bg-gray-900 p-6 rounded-xl shadow-lg mb-12">
+                <form action="{{ route('gallery.index') }}" method="GET" class="flex flex-col md:flex-row gap-4 items-center">
+                    
+                    <div class="relative flex-grow w-full md:w-auto">
+                        <input 
+                            type="text" 
+                            name="search"
+                            placeholder="Cari Judul atau Deskripsi Foto..." 
+                            value="{{ request('search') }}"
+                            class="w-full px-5 py-3 rounded-full bg-black text-white placeholder-gray-500 border border-gray-700 focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                        >
+                        <svg class="absolute right-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                        </svg>
+                    </div>
+
+                    <select name="category" class="w-full md:w-60 px-5 py-3 rounded-full bg-black text-white border border-gray-700 focus:outline-none focus:ring-2 focus:ring-yellow-400">
+                        <option value="">Semua Kategori</option>
+                        <option value="1">Gunung</option>
+                        <option value="2">Laut</option>
+                        <option value="3">Hutan</option>
+                    </select>
+                    
+                    <button type="submit" class="w-full md:w-28 px-5 py-3 bg-yellow-400 text-black rounded-full hover:bg-yellow-500 transition font-semibold">
+                        Cari
+                    </button>
+                    
+                    <a href="{{ route('gallery.index') }}" class="w-full md:w-28 text-center text-gray-400 hover:text-white transition">
+                        Reset
+                    </a>
+                </form>
+            </div>
+            
+            <h2 class="text-3xl font-bold text-center mb-8 text-yellow-400">Karya Terbaru</h2>
+            
+            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                
+                <div class="relative group overflow-hidden rounded-lg bg-gray-900 border border-gray-800 hover:border-yellow-400 transition">
+                    <img src="https://images.unsplash.com/photo-1543787321-c452e6977799?w=400" alt="Pantai Lamaru" class="w-full h-48 object-cover transform group-hover:scale-[1.05] transition duration-500">
+                    <div class="p-4">
+                        <h3 class="font-semibold text-lg text-white">Pantai Lamaru</h3>
+                        <p class="text-sm text-gray-400">Pantai | 10 Nov 2025</p>
+                        <div class="mt-3 flex justify-between items-center">
+                            {{-- Tombol View --}}
+                            <a href="#" class="text-xs px-3 py-1 bg-gray-700 text-white rounded hover:bg-gray-600 font-semibold">
+                                View
+                            </a>
+                            {{-- Tombol Suka --}}
+                            <button type="button" class="text-gray-400 hover:text-red-500 transition">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"></path>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="relative group overflow-hidden rounded-lg bg-gray-900 border border-gray-800 hover:border-yellow-400 transition">
+                    <img src="https://images.unsplash.com/photo-1551000673-a621752b02f1?w=400" alt="Bukit Kebo" class="w-full h-48 object-cover transform group-hover:scale-[1.05] transition duration-500">
+                    <div class="p-4">
+                        <h3 class="font-semibold text-lg text-white">Bukit Kebo</h3>
+                        <p class="text-sm text-gray-400">Bukit | 10 Nov 2025</p>
+                        <div class="mt-3 flex justify-between items-center">
+                            <a href="#" class="text-xs px-3 py-1 bg-gray-700 text-white rounded hover:bg-gray-600 font-semibold">
+                                View
+                            </a>
+                            <button type="button" class="text-gray-400 hover:text-red-500 transition">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"></path>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="relative group overflow-hidden rounded-lg bg-gray-900 border border-gray-800 hover:border-yellow-400 transition">
+                    <img src="https://images.unsplash.com/photo-1441974231531-c6227db76b6e?w=400" alt="Hutan Pinus" class="w-full h-48 object-cover transform group-hover:scale-[1.05] transition duration-500">
+                    <div class="p-4">
+                        <h3 class="font-semibold text-lg text-white">Hutan Pinus</h3>
+                        <p class="text-sm text-gray-400">Hutan | 09 Nov 2025</p>
+                        <div class="mt-3 flex justify-between items-center">
+                            <a href="#" class="text-xs px-3 py-1 bg-gray-700 text-white rounded hover:bg-gray-600 font-semibold">
+                                View
+                            </a>
+                            <button type="button" class="text-gray-400 hover:text-red-500 transition">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"></path>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="relative group overflow-hidden rounded-lg bg-gray-900 border border-gray-800 hover:border-yellow-400 transition">
+                    <img src="https://images.unsplash.com/photo-1433838552652-f9a46b332c40?w=400" alt="Pegunungan Salju" class="w-full h-48 object-cover transform group-hover:scale-[1.05] transition duration-500">
+                    <div class="p-4">
+                        <h3 class="font-semibold text-lg text-white">Pegunungan Salju</h3>
+                        <p class="text-sm text-gray-400">Gunung | 08 Nov 2025</p>
+                        <div class="mt-3 flex justify-between items-center">
+                            <a href="#" class="text-xs px-3 py-1 bg-gray-700 text-white rounded hover:bg-gray-600 font-semibold">
+                                View
+                            </a>
+                            <button type="button" class="text-gray-400 hover:text-red-500 transition">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"></path>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                </div>
+            
         </div>
-    @endforelse
-</div>
-
-<!-- 🔸 Floating Quick Upload Button -->
-<a href="{{ route('images.create') }}" class="floating-upload-btn">+</a>
-
-@endsection
+    </main>
+    
+    <footer class="text-center py-6 border-t border-gray-800 text-gray-500 text-sm">
+        © 2025 Artrium Project - Kelompok 6
+    </footer>
+</body>
+</html>

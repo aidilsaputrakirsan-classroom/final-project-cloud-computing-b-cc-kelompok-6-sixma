@@ -19,18 +19,7 @@ Route::get('/', function () {
 })->name('home');
 
 // ========================================================================
-// 2. PUBLIC ROUTES (Akses Pengguna Umum)
-// ========================================================================
-
-// Galeri publik (data dari Supabase)
-Route::get('/gallery', [ImageController::class, 'index'])->name('gallery.index');
-
-// Detail gambar
-Route::get('images/{id}', [ImageController::class, 'show'])->name('images.show');
-
-
-// ========================================================================
-// 2. AUTHENTICATION (Login & Register)
+// 2. AUTHENTICATION (Login, Register & Logout)
 // ========================================================================
 
 Route::middleware('guest')->group(function () {
@@ -43,17 +32,16 @@ Route::middleware('guest')->group(function () {
     Route::post('login', [AuthenticatedSessionController::class, 'store']);
 });
 
-// LOGOUT (user sudah login)
+// LOGOUT
 Route::post('logout', [AuthenticatedSessionController::class, 'destroy'])->name('logout');
 
+
 // ========================================================================
-// 4. PROTECTED ROUTES (Hanya untuk User yang Sudah Login)
+// 3. PROTECTED ROUTES (Hanya untuk User yang Sudah Login - CRUD)
+// Rute statis wajib di atas rute dinamis.
 // ========================================================================
 
 Route::middleware('auth')->group(function () {
-
-    // Logout
-    Route::post('logout', [AuthenticatedSessionController::class, 'destroy'])->name('logout');
 
     // CREATE GAMBAR
     Route::get('images/create', [ImageController::class, 'create'])->name('images.create');
@@ -66,3 +54,14 @@ Route::middleware('auth')->group(function () {
     // DELETE GAMBAR
     Route::delete('images/{id}', [ImageController::class, 'destroy'])->name('images.destroy');
 });
+
+
+// ========================================================================
+// 4. PUBLIC ROUTES (Akses Pengguna Umum)
+// ========================================================================
+
+// Galeri publik (semua gambar)
+Route::get('/explore', [ImageController::class, 'index'])->name('gallery.index');
+
+// Detail gambar (Rute Dinamis)
+Route::get('images/{id}', [ImageController::class, 'show'])->name('images.show');
