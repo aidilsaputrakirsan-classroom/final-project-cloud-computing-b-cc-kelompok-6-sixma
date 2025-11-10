@@ -1,54 +1,62 @@
 @extends('layouts.app') 
 
+@section('title', 'Register')
+
 @section('content')
-<div class="flex items-center justify-center min-h-screen bg-gray-900" style="background-image: url('{{ asset('images/register-bg.jpg') }}'); background-size: cover;">
-    <div class="w-full max-w-sm bg-gray-800 p-8 rounded-lg shadow-2xl">
-        
-        <h2 class="text-3xl font-bold text-center text-yellow-400 mb-2">Buat Akun Baru</h2>
-        <p class="text-center text-gray-400 text-sm mb-6">Daftar sekarang untuk menjelajahi halaman kami.</p>
-
-        <form method="POST" action="{{ route('register') }}">
-            @csrf
-
-            <div class="mb-4">
-                <input id="name" type="text" name="name" value="{{ old('name') }}" required autofocus
-                    class="w-full px-4 py-3 bg-gray-700 text-white border border-gray-600 rounded-md focus:outline-none focus:border-yellow-400 placeholder-gray-500"
-                    placeholder="Masukkan Nama/Username">
-                @error('name')
-                    <span class="text-red-400 text-xs mt-1">{{ $message }}</span>
-                @enderror
+<div class="row justify-content-center mt-5">
+    <div class="col-md-5">
+        <div class="card shadow-lg border-0">
+            <div class="card-header bg-warning text-center">
+                <h3 class="fw-bold mb-0">Buat Akun Baru</h3>
+                <small class="text-dark">Daftar sekarang untuk menjelajahi halaman kami.</small>
             </div>
-            
-            <div class="mb-4">
-                <input id="email" type="email" name="email" value="{{ old('email') }}" required
-                    class="w-full px-4 py-3 bg-gray-700 text-white border border-gray-600 rounded-md focus:outline-none focus:border-yellow-400 placeholder-gray-500"
-                    placeholder="Masukkan Email">
-                @error('email')
-                    <span class="text-red-400 text-xs mt-1">{{ $message }}</span>
-                @enderror
+            <div class="card-body">
+                <form method="POST" action="{{ route('register') }}">
+                    @csrf
+
+                    <div class="mb-3">
+                        <label for="name" class="form-label">Nama/Username</label>
+                        <input id="name" type="text" name="name" value="{{ old('name') }}" required autofocus
+                            class="form-control @error('name') is-invalid @enderror">
+                        @error('name')
+                            <div class="invalid-feedback">{{ $message }}</div>
+                        @enderror
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="email" class="form-label">Email</label>
+                        <input id="email" type="email" name="email" value="{{ old('email') }}" required
+                            class="form-control @error('email') is-invalid @enderror">
+                        @error('email')
+                            <div class="invalid-feedback">{{ $message }}</div>
+                        @enderror
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="password" class="form-label">Password</label>
+                        <input id="password" type="password" name="password" required
+                            class="form-control @error('password') is-invalid @enderror">
+                        @error('password')
+                            <div class="invalid-feedback">{{ $message }}</div>
+                        @enderror
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="password_confirmation" class="form-label">Konfirmasi Password</label>
+                        <input id="password_confirmation" type="password" name="password_confirmation" required
+                            class="form-control">
+                    </div>
+
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-warning fw-bold">Daftar</button>
+                    </div>
+                </form>
+                
+                <p class="text-center text-muted mt-3 mb-0">
+                    Sudah punya akun? <a href="{{ route('login') }}" class="text-warning fw-bold">Login</a>
+                </p>
             </div>
-
-            <div class="mb-4">
-                <input id="password" type="password" name="password" required
-                    class="w-full px-4 py-3 bg-gray-700 text-white border border-gray-600 rounded-md focus:outline-none focus:border-yellow-400 placeholder-gray-500"
-                    placeholder="Masukkan Password">
-                @error('password')
-                    <span class="text-red-400 text-xs mt-1">{{ $message }}</span>
-                @enderror
-            </div>
-
-            <div class="mb-6">
-                <input id="password_confirmation" type="password" name="password_confirmation" required
-                    class="w-full px-4 py-3 bg-gray-700 text-white border border-gray-600 rounded-md focus:outline-none focus:border-yellow-400 placeholder-gray-500"
-                    placeholder="Konfirmasi Password">
-            </div>
-
-            <button type="submit"
-                class="w-full py-3 bg-yellow-500 text-gray-900 font-bold rounded-md hover:bg-yellow-600 transition duration-200">
-                Masuk
-            </button>
-        </form>
-
+        </div>
     </div>
 </div>
 @endsection

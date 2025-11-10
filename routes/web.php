@@ -1,37 +1,67 @@
 <?php
 
-// Pastikan baris-baris ini ada di bagian atas file routes/web.php
+use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\ImageController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\RegisteredUserController;
-use Illuminate\Support\Facades\Route; // Pastikan ini juga ada
 
 /*
 |--------------------------------------------------------------------------
 | Web Routes
 |--------------------------------------------------------------------------
-|
-| Baris lain dari routes Anda ada di sini...
-|
 */
 
-// ===================================================
-// INI ADALAH ROUTES UNTUK AUTENTIKASI (LOGIN & REGISTER)
-// ===================================================
+// ========================================================================
+// 1. PUBLIC ROUTES (Akses Pengguna Umum)
+// ========================================================================
 
-// Route untuk menampilkan Form Register
-Route::get('/register', [RegisteredUserController::class, 'create'])->name('register');
-// Route untuk memproses data Register
-Route::post('/register', [RegisteredUserController::class, 'store']);
+// Homepage / Galeri Utama (READ Gambar)
+Route::get('/', [ImageController::class, 'index'])->name('gallery.index');
 
-// Route untuk menampilkan Form Login
-Route::get('/login', [AuthenticatedSessionController::class, 'create'])->name('login');
-// Route untuk memproses data Login
-Route::post('/login', [AuthenticatedSessionController::class, 'store']);
 
-// Route untuk proses Logout
-Route::post('/logout', [AuthenticatedSessionController::class, 'destroy'])->middleware('auth')->name('logout');
+// ========================================================================
+// 2. AUTHENTICATION (Login & Register)
+// ========================================================================
 
-// Route Home (Contoh)
-Route::get('/', function () {
-    return view('welcome'); // atau view home/galeri Anda
+// Group khusus untuk pengguna yang belum login (guest)
+Route::middleware('guest')->group(function () {
+    // Register
+    Route::get('register', [RegisteredUserController::class, 'create'])->name('register');
+    Route::post('register', [RegisteredUserController::class, 'store']);
+
+    // Login
+    Route::get('login', [AuthenticatedSessionController::class, 'create'])->name('login');
+    Route::post('login', [AuthenticatedSessionController::class, 'store']);
 });
+
+
+// ========================================================================
+// 3. PROTECTED ROUTES (Hanya untuk User yang Sudah Login)
+// ========================================================================
+
+Route::middleware('auth')->group(function () {
+
+    // Logout
+    Route::post('logout', [AuthenticatedSessionController::class, 'destroy'])->name('logout');
+
+    // CRUD GAMBAR (CREATE, EDIT, UPDATE, DELETE)
+    Route::get('images', [ImageController::class, 'index'])->name('gallery.index');
+    // --------------------------------------------------------------------
+
+    // CREATE GAMBAR
+    Route::get('images/create', [ImageController::class, 'create'])->name('images.create');
+    Route::post('images', [ImageController::class, 'store'])->name('images.store');
+
+    // EDIT & UPDATE GAMBAR
+    Route::get('images/{id}/edit', [ImageController::class, 'edit'])->name('images.edit');
+    Route::patch('images/{id}', [ImageController::class, 'update'])->name('images.update');
+
+    // DELETE GAMBAR
+    Route::delete('images/{id}', [ImageController::class, 'destroy'])->name('images.destroy');
+});
+
+// ========================================================================
+// 4. ROUTE PUBLIC TERAKHIR (SHOW GAMBAR DETAIL) – letakkan PALING BAWAH
+// ========================================================================
+
+Route::get('images/{id}', [ImageController::class, 'show'])->name('images.show');
