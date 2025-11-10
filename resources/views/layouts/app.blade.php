@@ -4,22 +4,76 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Artrium | @yield('title', 'Galeri Alam')</title>
-    
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous">
-    
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+
     <style>
-        body { background-color: #f8f9fa; }
-        .card-img-top { height: 250px; object-fit: cover; }
+        html, body {
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            background-color: #0A0A0A;
+            color: #f8f9fa;
+            font-family: 'Poppins', sans-serif;
+        }
+
+        main {
+            flex: 1 0 auto;
+            padding-bottom: 30px; /* biar gak ketiban footer */
+        }
+
+        footer {
+            flex-shrink: 0;
+            background-color: #0A0A0A;
+            color: #F6C74D;
+            border-top: 1px solid rgba(246, 199, 77, 0.25);
+            text-align: center;
+            padding: 10px 0;
+            font-size: 0.9rem;
+            letter-spacing: 0.3px;
+        }
+
+        .card-img-top {
+            height: 250px;
+            object-fit: cover;
+        }
+
+        .navbar {
+            background-color: #111 !important;
+        }
+
+        .navbar-brand {
+            color: #F6C74D !important;
+            font-weight: 700;
+            font-size: 1.2rem;
+        }
+
+        .nav-link, .dropdown-item {
+            color: #f8f9fa !important;
+        }
+
+        .btn-warning {
+            background-color: #F6C74D;
+            color: #000;
+            font-weight: 600;
+            border-radius: 10px;
+            border: none;
+        }
+
+        .btn-warning:hover {
+            background-color: #FFD85C;
+            box-shadow: 0 0 10px rgba(246, 199, 77, 0.5);
+        }
     </style>
 </head>
 
 <body>
-    <nav class="navbar navbar-expand-lg navbar-dark bg-dark shadow-sm">
+    <nav class="navbar navbar-expand-lg shadow-sm">
         <div class="container">
-            <a class="navbar-brand fw-bold text-warning" href="{{ url('/') }}">
+            <a class="navbar-brand" href="{{ url('/') }}">
                 🌿 Artrium
             </a>
-            
+
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav ms-auto">
                     @auth
@@ -32,9 +86,9 @@
                             <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                                 Halo, {{ Auth::user()->name }}
                             </a>
-                            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="navbarDropdown">
-                                <li><a class="dropdown-item" href="#">Profil</a></li>
-                                <li><hr class="dropdown-divider"></li>
+                            <ul class="dropdown-menu dropdown-menu-end bg-dark border-0 shadow">
+                                <li><a class="dropdown-item text-light" href="#">Profil</a></li>
+                                <li><hr class="dropdown-divider bg-secondary"></li>
                                 <li>
                                     <form method="POST" action="{{ route('logout') }}">
                                         @csrf
@@ -70,10 +124,10 @@
         </div>
     </main>
 
-    <footer class="text-center mt-auto py-3 bg-light border-top fixed-bottom">
-        <p class="text-xs text-muted mb-0">© 2025 Artrium Project — Kelompok 6</p>
+    <footer>
+        © 2025 Artrium Project — Kelompok 6
     </footer>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
