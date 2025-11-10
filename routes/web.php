@@ -2,6 +2,7 @@
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\ImageController;
+use App\Http\Controllers\ProfileController; // 🎯 BARU: Tambahkan ProfileController
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\RegisteredUserController;
 
@@ -15,7 +16,7 @@ use App\Http\Controllers\Auth\RegisteredUserController;
 // 1. HOMEPAGE (Landing Page Artrium)
 // ========================================================================
 Route::get('/', function () {
-    return view('home'); // tampilkan resources/views/home.blade.php
+    return view('home'); 
 })->name('home');
 
 // ========================================================================
@@ -37,12 +38,15 @@ Route::post('logout', [AuthenticatedSessionController::class, 'destroy'])->name(
 
 
 // ========================================================================
-// 3. PROTECTED ROUTES (Hanya untuk User yang Sudah Login - CRUD)
-// Rute statis wajib di atas rute dinamis.
+// 3. PROTECTED ROUTES (Hanya untuk User yang Sudah Login - CRUD & Profile)
 // ========================================================================
 
 Route::middleware('auth')->group(function () {
 
+    // Rute Profile Saya 🎯 BARU
+    Route::get('/profile', [ProfileController::class, 'showProfile'])->name('profile.show'); 
+    
+    // CRUD GAMBAR (Rute Statis wajib di atas Dinamis)
     // CREATE GAMBAR
     Route::get('images/create', [ImageController::class, 'create'])->name('images.create');
     Route::post('images', [ImageController::class, 'store'])->name('images.store');
@@ -60,8 +64,8 @@ Route::middleware('auth')->group(function () {
 // 4. PUBLIC ROUTES (Akses Pengguna Umum)
 // ========================================================================
 
-// Galeri publik (semua gambar)
+// Galeri publik (Explore)
 Route::get('/explore', [ImageController::class, 'index'])->name('gallery.index');
 
-// Detail gambar (Rute Dinamis)
+// Detail gambar (Rute Dinamis, Wajib di bawah images/create)
 Route::get('images/{id}', [ImageController::class, 'show'])->name('images.show');
