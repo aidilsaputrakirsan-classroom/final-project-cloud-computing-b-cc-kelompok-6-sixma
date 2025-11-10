@@ -4,6 +4,8 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\ImageController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\RegisteredUserController;
+use App\Http\Controllers\ReportController;
+use App\Http\Controllers\ProfileController; // 🟢 Tambahkan baris ini
 
 /*
 |--------------------------------------------------------------------------
@@ -23,7 +25,6 @@ Route::get('/', [ImageController::class, 'index'])->name('gallery.index');
 // 2. AUTHENTICATION (Login & Register)
 // ========================================================================
 
-// Group khusus untuk pengguna yang belum login (guest)
 Route::middleware('guest')->group(function () {
     // Register
     Route::get('register', [RegisteredUserController::class, 'create'])->name('register');
@@ -44,10 +45,6 @@ Route::middleware('auth')->group(function () {
     // Logout
     Route::post('logout', [AuthenticatedSessionController::class, 'destroy'])->name('logout');
 
-    // CRUD GAMBAR (CREATE, EDIT, UPDATE, DELETE)
-    Route::get('images', [ImageController::class, 'index'])->name('gallery.index');
-    // --------------------------------------------------------------------
-
     // CREATE GAMBAR
     Route::get('images/create', [ImageController::class, 'create'])->name('images.create');
     Route::post('images', [ImageController::class, 'store'])->name('images.store');
@@ -58,10 +55,17 @@ Route::middleware('auth')->group(function () {
 
     // DELETE GAMBAR
     Route::delete('images/{id}', [ImageController::class, 'destroy'])->name('images.destroy');
+    
+    // 📢 ROUTE UNTUK PELAPORAN KONTEN
+    Route::post('images/{id}/report', [ReportController::class, 'store'])->name('images.report');
+
+    // 🟡 ROUTE BARU UNTUK HALAMAN PROFIL USER
+    Route::get('/profile', [ProfileController::class, 'index'])->name('profile.index');
 });
 
+
 // ========================================================================
-// 4. ROUTE PUBLIC TERAKHIR (SHOW GAMBAR DETAIL) – letakkan PALING BAWAH
+// 4. ROUTE PUBLIC TERAKHIR (SHOW GAMBAR DETAIL)
 // ========================================================================
 
 Route::get('images/{id}', [ImageController::class, 'show'])->name('images.show');
