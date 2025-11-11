@@ -6,7 +6,11 @@
     <title>Artrium | @yield('title', 'Galeri Alam')</title>
 
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+    
+    {{-- Tambahkan Yield untuk CSS custom dari view anak (misalnya show.blade.php) --}}
+    @stack('styles') 
+    
     <style>
         html, body {
             height: 100%;
@@ -19,7 +23,7 @@
 
         main {
             flex: 1 0 auto;
-            padding-bottom: 30px; /* biar gak ketiban footer */
+            padding-bottom: 30px; 
         }
 
         footer {
@@ -64,20 +68,40 @@
             background-color: #FFD85C;
             box-shadow: 0 0 10px rgba(246, 199, 77, 0.5);
         }
+        
+        .dropdown-menu {
+             /* Menjaga dropdown tetap gelap */
+            --bs-dropdown-bg: #111; 
+        }
     </style>
 </head>
 
 <body>
+    {{-- NAVIGASI UTAMA (Diperbarui agar konsisten) --}}
     <nav class="navbar navbar-expand-lg shadow-sm">
         <div class="container">
             <a class="navbar-brand" href="{{ url('/') }}">
                 🌿 Artrium
             </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
 
             <div class="collapse navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav ms-auto">
+                <ul class="navbar-nav ms-auto align-items-center"> {{-- Tambah align-items-center untuk konsistensi --}}
+                    
+                    {{-- Navigasi Utama --}}
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ route('home') }}">Home</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ route('gallery.index') }}">Explore</a>
+                    </li>
                     @auth
                         <li class="nav-item">
+                            <a class="nav-link" href="{{ route('profile.show') }}">Profile</a>
+                        </li>
+                        <li class="nav-item ms-lg-2">
                             <a class="btn btn-warning btn-sm me-2" href="{{ route('images.create') }}">
                                 + Unggah Karya
                             </a>
@@ -86,9 +110,9 @@
                             <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                                 Halo, {{ Auth::user()->name }}
                             </a>
-                            <ul class="dropdown-menu dropdown-menu-end bg-dark border-0 shadow">
-                                <li><a class="dropdown-item text-light" href="#">Profil</a></li>
-                                <li><hr class="dropdown-divider bg-secondary"></li>
+                            <ul class="dropdown-menu dropdown-menu-end shadow">
+                                <li><a class="dropdown-item text-light" href="{{ route('profile.show') }}">Lihat Profil</a></li>
+                                <li><hr class="dropdown-divider"></li>
                                 <li>
                                     <form method="POST" action="{{ route('logout') }}">
                                         @csrf
@@ -98,7 +122,7 @@
                             </ul>
                         </li>
                     @else
-                        <li class="nav-item">
+                        <li class="nav-item ms-lg-2">
                             <a class="btn btn-outline-light btn-sm me-2" href="{{ route('login') }}">Login</a>
                         </li>
                         <li class="nav-item">
@@ -114,10 +138,16 @@
         <div class="container">
             {{-- Notifikasi --}}
             @if (session('success'))
-                <div class="alert alert-success alert-dismissible fade show" role="alert">{{ session('success') }}</div>
+                <div class="alert alert-success alert-dismissible fade show" role="alert">
+                    {{ session('success') }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
             @endif
             @if (session('error'))
-                <div class="alert alert-danger alert-dismissible fade show" role="alert">{{ session('error') }}</div>
+                <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                    {{ session('error') }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
             @endif
             
             @yield('content')

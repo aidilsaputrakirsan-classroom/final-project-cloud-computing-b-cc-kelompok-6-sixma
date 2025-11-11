@@ -6,8 +6,12 @@
     <title>{{ $image['title'] }} - Detail Karya</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+    
+    {{-- PERBAIKAN Wajib: Impor Tailwind CSS agar styling Anda bekerja --}}
+    <script src="https://cdn.tailwindcss.com"></script> 
+    
     <style>
-        /* ======== STYLING CSS ANDA YANG SUDAH ADA ======== */
+        /* ======== STYLING CSS ANDA ======== */
         body {
             background-color: #0A0A0A;
             color: #f8f9fa;
@@ -26,7 +30,6 @@
             padding: 40px;
         }
 
-        /* PERUBAHAN: Menghilangkan padding agar konten di dalam card lebih fleksibel */
         .image-content {
             padding: 0 20px;
             text-align: left;
@@ -36,16 +39,21 @@
             color: #F6C74D;
             font-weight: 700;
             margin-bottom: 20px;
-            text-align: center; /* Pastikan judul tetap di tengah */
+            text-align: center;
         }
 
         .image-card img {
             max-width: 100%;
+            max-height: 85vh; 
+            width: auto;
             border-radius: 15px;
             box-shadow: 0 0 25px rgba(246, 199, 77, 0.25);
             margin-bottom: 25px;
             transition: all 0.3s ease;
             object-fit: cover;
+            display: block;
+            margin-left: auto;
+            margin-right: auto;
         }
 
         .image-card img:hover {
@@ -65,10 +73,10 @@
             font-size: 1rem;
             margin-top: 10px;
             margin-bottom: 25px;
-            text-align: justify; /* Deskripsi lebih baik rata kiri-kanan */
+            text-align: justify;
         }
         
-        /* ======== STYLING KOMENTAR BARU ======== */
+        /* ======== STYLING KOMENTAR & BUTTONS ======== */
         .comment-area {
             margin-top: 30px;
             padding-top: 20px;
@@ -81,11 +89,6 @@
             padding: 12px;
             border-radius: 10px;
             margin-bottom: 10px;
-            position: relative;
-        }
-
-        .comment-item small {
-            color: #888;
         }
 
         .comment-input-form textarea {
@@ -96,13 +99,6 @@
             resize: none;
         }
 
-        .comment-input-form textarea:focus {
-            background-color: rgba(50, 50, 50, 0.9);
-            border-color: #F6C74D;
-            box-shadow: none;
-        }
-        
-        /* Tombol yang sudah ada */
         .btn-warning {
             background-color: #F6C74D;
             border: none;
@@ -114,11 +110,6 @@
             box-shadow: 0 0 10px rgba(246, 199, 77, 0.3);
         }
 
-        .btn-warning:hover {
-            background-color: #FFD85C;
-            box-shadow: 0 0 20px rgba(246, 199, 77, 0.5);
-        }
-
         .btn-secondary {
             background-color: rgba(255, 255, 255, 0.1);
             border: none;
@@ -128,29 +119,30 @@
             padding: 10px 20px;
             transition: all 0.3s ease;
         }
-
-        .btn-secondary:hover {
-            background-color: rgba(255, 255, 255, 0.2);
-        }
-        /* ======== AKHIR STYLING CSS ANDA ======== */
     </style>
 </head>
 <body>
 
 <div class="container py-5">
     <div class="image-card">
-        <h2>{{ $image['title'] }}</h2>
+        <h2>{{ $image['title'] ?? 'Judul Tidak Ada' }}</h2>
 
         {{-- Gambar dari Supabase --}}
         <img src="{{ $image['image_url'] ?? 'https://via.placeholder.com/700x500?text=Gambar+Hilang' }}" 
-             alt="{{ $image['title'] }}"
+             alt="{{ $image['title'] ?? 'Gambar' }}"
              onerror="this.src='https://via.placeholder.com/500x350?text=Image+Not+Found'">
         
         <div class="image-content">
-            {{-- Informasi detail --}}
-            <div class="info text-center">
-                {{-- Asumsi Anda sudah mengolah created_at dengan Carbon di Controller atau View --}}
-                📅 Diunggah pada {{ \Carbon\Carbon::parse($image['created_at'] ?? now())->format('d M Y, H:i') }}
+            
+            {{-- Bagian Metadata Gambar (Kategori & Tanggal) --}}
+            <div class="info text-center mt-3">
+                @if(!empty($image['category_id']))
+                    <span class="badge bg-warning text-dark me-2">🏷️ Kategori: {{ $image['category_name'] ?? $image['category_id'] }}</span> 
+                @endif
+                {{-- Tanggal --}}
+                <span class="text-white date">
+                     • 📅 Diunggah pada {{ \Carbon\Carbon::parse($image['created_at'] ?? now())->format('d M Y, H:i') }}
+                </span>
             </div>
 
             {{-- Deskripsi Gambar --}}
@@ -158,23 +150,22 @@
                 {{ $image['description'] ?? 'Tidak ada deskripsi tersedia.' }}
             </p>
             
-            <div class="d-flex justify-content-between align-items-center mb-4">
-                {{-- Penulis Gambar (Jika ada) --}}
+            {{-- Penulis & Tombol Aksi --}}
+            <div class="d-flex justify-content-between align-items-center mb-4 border-top pt-3">
+                
                 <div class="fw-bold text-light">
-                    Oleh: {{ $image['user_name'] ?? 'Pengguna Artrium' }} 
+                    Oleh: <span class="text-warning">{{ $image['user_name'] ?? 'Pengguna Artrium' }}</span>
                 </div>
                 
                 {{-- Tombol aksi --}}
                 <div class="d-flex gap-3">
-                    {{-- Tombol Edit HANYA jika pengguna adalah pemilik (Logika otorisasi di sini harus diterapkan) --}}
-                    {{-- Asumsi $image['user_id'] tersedia dan sama dengan Auth::id() --}}
                     @auth
                         @if (Auth::id() == $image['user_id'])
                             <a href="{{ route('images.edit', $image['id']) }}" class="btn btn-warning btn-sm">Edit Karya</a>
                         @endif
                     @endauth
 
-                    <a href="{{ route('gallery.index') }}" class="btn btn-secondary btn-sm">Kembali ke Galeri</a>
+                    <a href="{{ route('gallery.index') }}" class="btn btn-secondary btn-sm">Kembali</a>
                 </div>
             </div>
             
@@ -205,21 +196,19 @@
                     <p class="text-center text-gray-500">Silakan <a href="{{ route('login') }}" class="text-warning">Login</a> untuk meninggalkan komentar.</p>
                 @endauth
 
-                {{-- DAFTAR KOMENTAR (Placeholder) --}}
+                {{-- DAFTAR KOMENTAR (Kini Bersih) --}}
                 <div id="comments-list">
-                    {{-- Di sini tempat loop data komentar akan ditempatkan --}}
+                    {{-- DI SINI TEMPAT LOOPING DATA KOMENTAR DARI DATABASE --}}
+                    {{-- @if (!empty($comments)) --}}
                     {{-- @foreach ($comments as $comment) --}}
-                        <div class="comment-item">
-                            <div class="fw-bold text-warning">Nama Pengguna</div>
-                            <p class="mb-1">Ini adalah contoh komentar pertama.</p>
-                            <small class="text-muted">5 menit yang lalu</small>
-                            {{-- Tombol Delete (Hanya jika Auth::id() == $comment['user_id']) --}}
-                        </div>
+                        {{-- ... tampilkan komentar dinamis di sini ... --}}
                     {{-- @endforeach --}}
+                    {{-- @else --}}
+                        <p class="text-center text-gray-500">Belum ada komentar untuk karya ini.</p>
+                    {{-- @endif --}}
                 </div>
             </div>
         </div>
-        
     </div>
 </div>
 

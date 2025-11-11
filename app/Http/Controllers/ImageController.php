@@ -20,27 +20,21 @@ class ImageController extends Controller
     public function index(Request $request)
     {
         try {
-            // 🎯 PERBAIKAN: SELECT hanya kolom dasar.
-            // Ini untuk menghindari masalah cache PostgREST saat membaca relasi kategori.
+            // SELECT dasar untuk menghindari masalah cache PostgREST
             $selectFields = 'id,title,image_path,category_id,user_id,created_at,description';
             $query = env('SUPABASE_REST_URL') . '/images?select=' . $selectFields;
             
-            // Logika Search (Judul/Deskripsi)
+            // Logika Search dan Filter
             if ($request->has('search') && !empty($request->search)) {
                 $search = $request->search;
-                // Menggunakan operator OR untuk mencari di Judul ATAU Deskripsi
                 $query .= '&or=(title.ilike.%25' . $search . '%25,description.ilike.%25' . $search . '%25)';
             }
-            
-            // Logika Filter (Kategori)
             if ($request->has('category') && !empty($request->category)) {
                 $category = $request->category;
                 $query .= '&category_id=eq.' . $category;
             }
 
             $query .= '&order=created_at.desc';
-
-            Log::info('📡 Supabase Query (Explore):', ['query' => $query]);
 
             $imagesResponse = Http::withHeaders([
                 'apikey' => env('SUPABASE_ANON_KEY'),
@@ -51,7 +45,6 @@ class ImageController extends Controller
             
             if (!$imagesResponse->successful()) {
                 Log::error('💥 Explore Fetch Failed:', ['status' => $imagesResponse->status(), 'body' => $imagesResponse->body()]);
-                // Lanjutkan, tapi array images kosong
             } else {
                 $imagesData = $imagesResponse->json();
                 
@@ -78,30 +71,46 @@ class ImageController extends Controller
 
         } catch (\Exception $e) {
             Log::error('💥 Error in index(): ' . $e->getMessage());
+            $images = [];
+            $categories = [];
             return view('images.index', compact('images', 'categories'))->with('error', 'Gagal memuat galeri.');
         }
     }
     
-    // ... Fungsi show() Anda di sini (Tidak diubah) ...
+    // ==========================================================
+    // 🟢 SHOW GAMBAR (DETAIL) - PERBAIKAN KRITIS
+    // ==========================================================
     public function show($id)
     {
         try {
+            // 🎯 PERBAIKAN: SELECT sederhana untuk menghindari 404/konflik join
             $response = Http::withHeaders([
                 'apikey' => env('SUPABASE_ANON_KEY'),
                 'Authorization' => 'Bearer ' . env('SUPABASE_ANON_KEY'),
-            ])->get(env('SUPABASE_REST_URL') . '/images?id=eq.' . $id);
+            ])->get(env('SUPABASE_REST_URL') . '/images?id=eq.' . $id . '&select=*'); // SELECT semua kolom
 
             $imageData = $response->json();
 
             if (empty($imageData)) {
+                // Jika data kosong setelah query dasar, maka ID memang tidak ditemukan
                 abort(404);
             }
 
             $image = $imageData[0];
             
+            // Tambahkan URL Storage
             $baseStorageUrl = rtrim(env('SUPABASE_URL'), '/') . '/storage/v1/object/public/images/';
             $image['image_url'] = $baseStorageUrl . $image['image_path'];
+            
+            // Ambil Nama User secara terpisah (karena join di query utama dihapus)
+            $userResponse = Http::withHeaders([ /* ...headers... */ ])
+                ->get(env('SUPABASE_REST_URL') . '/users?id=eq.' . $image['user_id'] . '&select=name');
 
+            $userData = $userResponse->json();
+            $image['user_name'] = $userData[0]['name'] ?? 'Pengguna Artrium'; // Default jika gagal
+
+            // HINDARI BUG NULL: Pastikan tidak ada variabel yang dicetak di sini
+            
             return view('images.show', compact('image')); 
         } catch (\Exception $e) {
             Log::error('Error in show(): ' . $e->getMessage());
@@ -146,11 +155,7 @@ class ImageController extends Controller
             $filename = preg_replace('/[^A-Za-z0-9_\-\.]/', '_', time() . '_' . $userId . '_' . $file->getClientOriginalName());
 
             // 1. Upload ke Supabase Storage
-            $upload = Http::withHeaders([
-                'apikey' => env('SUPABASE_ANON_KEY'),
-                'Authorization' => 'Bearer ' . env('SUPABASE_ANON_KEY'),
-                'Content-Type' => $mimeType,
-            ])->withBody(file_get_contents($file), $mimeType)
+            $upload = Http::withHeaders([ /* ...headers... */ ])->withBody(file_get_contents($file), $mimeType)
             ->post(env('SUPABASE_STORAGE_URL') . '/object/images/' . $filename);
 
             if (!$upload->successful()) {
@@ -170,12 +175,7 @@ class ImageController extends Controller
 
             // 3. Simpan metadata ke database Supabase
             $databaseUrl = env('SUPABASE_REST_URL') . '/images';
-            $createImage = Http::withHeaders([
-                'apikey' => env('SUPABASE_ANON_KEY'),
-                'Authorization' => 'Bearer ' . env('SUPABASE_ANON_KEY'),
-                'Content-Type' => 'application/json',
-                'Prefer' => 'return=representation'
-            ])->post($databaseUrl, $imageData);
+            $createImage = Http::withHeaders([ /* ...headers... */ ])->post($databaseUrl, $imageData);
 
             if (!$createImage->successful()) {
                 // Hapus file yang sudah terupload jika database gagal
@@ -232,8 +232,7 @@ class ImageController extends Controller
 
     public function update(Request $request, $id)
     {
-        // ... [Kode update Anda di sini, tidak perlu diulang] ...
-         if (!Auth::check()) {
+        if (!Auth::check()) {
             return redirect()->route('login')->with('error', 'Silakan login.');
         }
         $userId = Auth::id();
@@ -246,30 +245,21 @@ class ImageController extends Controller
 
         try {
             $updateData = $request->only(['title', 'category_id', 'description']);
-            $oldImagePath = null;
 
-            // Logika file upload di sini
             if ($request->hasFile('image')) {
-                // Fetch path lama untuk penghapusan
+                // Logika penghapusan file lama dan upload file baru
                 $oldImageResponse = Http::withHeaders([ /* ...headers... */ ])->get(env('SUPABASE_REST_URL') . '/images?id=eq.' . $id . '&user_id=eq.' . $userId . '&select=image_path');
                 $oldImageData = $oldImageResponse->json();
-
                 if (!empty($oldImageData) && isset($oldImageData[0]['image_path'])) {
                     $oldImagePath = $oldImageData[0]['image_path'];
-                    // Hapus file lama dari storage (Opsional: buat fungsi delete terpisah)
                     Http::withHeaders([ /* ...headers... */ ])->delete(env('SUPABASE_STORAGE_URL') . '/object/images/' . $oldImagePath);
                 }
                 
                 $file = $request->file('image'); 
                 $filename = time() . '_' . $userId . '_' . $file->getClientOriginalName();
-
-                // Upload file baru
-                $upload = Http::withHeaders([ /* ...headers... */ ])
-                    ->post(env('SUPABASE_STORAGE_URL') . '/object/images/' . $filename, file_get_contents($file));
+                $upload = Http::withHeaders([ /* ...headers... */ ])->post(env('SUPABASE_STORAGE_URL') . '/object/images/' . $filename, file_get_contents($file));
                 
-                if (!$upload->successful()) { 
-                    return back()->with('error', 'Gagal mengunggah gambar baru.');
-                }
+                if (!$upload->successful()) { return back()->with('error', 'Gagal mengunggah gambar baru.'); }
                 
                 $updateData['image_path'] = $filename;
             }
@@ -297,8 +287,7 @@ class ImageController extends Controller
     // ==========================================================
     public function destroy($id)
     {
-        // ... [Kode delete Anda di sini, tidak perlu diulang] ...
-         if (!Auth::check()) {
+        if (!Auth::check()) {
             return redirect()->route('login')->with('error', 'Silakan login.');
         }
         $userId = Auth::id();

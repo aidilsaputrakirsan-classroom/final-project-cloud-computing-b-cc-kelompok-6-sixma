@@ -2,9 +2,10 @@
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\ImageController;
-use App\Http\Controllers\ProfileController; // 🎯 BARU: Tambahkan ProfileController
+use App\Http\Controllers\ProfileController; 
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\RegisteredUserController;
+use App\Http\Controllers\CommentController; // 🎯 BARU
 
 /*
 |--------------------------------------------------------------------------
@@ -43,11 +44,10 @@ Route::post('logout', [AuthenticatedSessionController::class, 'destroy'])->name(
 
 Route::middleware('auth')->group(function () {
 
-    // Rute Profile Saya 🎯 BARU
+    // Rute Profile Saya
     Route::get('/profile', [ProfileController::class, 'showProfile'])->name('profile.show'); 
     
-    // CRUD GAMBAR (Rute Statis wajib di atas Dinamis)
-    // CREATE GAMBAR
+    // CRUD GAMBAR
     Route::get('images/create', [ImageController::class, 'create'])->name('images.create');
     Route::post('images', [ImageController::class, 'store'])->name('images.store');
 
@@ -57,6 +57,15 @@ Route::middleware('auth')->group(function () {
 
     // DELETE GAMBAR
     Route::delete('images/{id}', [ImageController::class, 'destroy'])->name('images.destroy');
+    
+    // =======================================================
+    // RUTE BARU: KOMENTAR
+    // =======================================================
+    Route::post('images/{image}/comments', [CommentController::class, 'store'])
+        ->name('comments.store');
+        
+    Route::delete('comments/{id}', [CommentController::class, 'destroy'])
+        ->name('comments.destroy');
 });
 
 
@@ -67,5 +76,5 @@ Route::middleware('auth')->group(function () {
 // Galeri publik (Explore)
 Route::get('/explore', [ImageController::class, 'index'])->name('gallery.index');
 
-// Detail gambar (Rute Dinamis, Wajib di bawah images/create)
+// Detail gambar (Rute Dinamis)
 Route::get('images/{id}', [ImageController::class, 'show'])->name('images.show');
