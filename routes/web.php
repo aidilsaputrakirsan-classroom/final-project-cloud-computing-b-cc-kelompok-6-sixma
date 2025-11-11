@@ -53,6 +53,7 @@ Route::middleware('auth')->group(function () {
     Route::post('images', [ImageController::class, 'store'])->name('images.store');
 
     // EDIT & UPDATE GAMBAR
+    // Rute Edit, Update, dan Delete MENGGUNAKAN {id} agar konsisten dengan Controller
     Route::get('images/{id}/edit', [ImageController::class, 'edit'])->name('images.edit');
     Route::patch('images/{id}', [ImageController::class, 'update'])->name('images.update');
 
@@ -60,11 +61,11 @@ Route::middleware('auth')->group(function () {
     Route::delete('images/{id}', [ImageController::class, 'destroy'])->name('images.destroy');
     
     // RUTE KOMENTAR
-    // [C] STORE Komentar
+    // [C] STORE Komentar (Menggunakan {image} untuk ID gambar)
     Route::post('images/{image}/comments', [CommentController::class, 'store'])
         ->name('comments.store');
         
-    // [D] DELETE Komentar
+    // [D] DELETE Komentar (Menggunakan {id} untuk ID komentar, jika itu yang digunakan di controller)
     Route::delete('comments/{id}', [CommentController::class, 'destroy'])
         ->name('comments.destroy');
 });
