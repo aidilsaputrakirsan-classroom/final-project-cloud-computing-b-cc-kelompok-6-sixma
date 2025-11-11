@@ -105,31 +105,44 @@
             
             <h2 class="text-3xl font-bold text-center mb-8 text-yellow-400">Karya Terbaru</h2>
             
-            {{-- Menggunakan grid seragam 4 kolom --}}
-            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-                
-                {{-- LOOP DATA DARI DATABASE DI SINI --}}
-                {{-- @foreach ($images as $image) ... @endforeach --}}
-
-                <div class="relative group overflow-hidden rounded-lg bg-gray-900 border border-gray-800 hover:border-yellow-400 transition">
-                    <img src="https://images.unsplash.com/photo-1543787321-c452e6977799?w=400" alt="Pantai Lamaru" class="w-full h-48 object-cover transform group-hover:scale-[1.05] transition duration-500">
-                    <div class="p-4">
-                        <h3 class="font-semibold text-lg text-white">Pantai Lamaru</h3>
-                        <p class="text-sm text-gray-400">Pantai | 10 Nov 2025</p>
-                        <div class="mt-3 flex justify-between items-center">
-                            {{-- Tombol View --}}
-                            <a href="#" class="text-xs px-3 py-1 bg-gray-700 text-white rounded hover:bg-gray-600 font-semibold">
-                                View
-                            </a>
-                            {{-- Tombol Suka --}}
-                            <button type="button" class="text-gray-400 hover:text-red-500 transition">
-                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"></path>
-                                </svg>
-                            </button>
-                        </div>
-                    </div>
+           {{-- Menggunakan grid seragam 4 kolom --}}
+<div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+    {{-- LOOP DATA DARI DATABASE DI SINI --}}
+    @forelse ($images as $image)
+        <div class="relative group overflow-hidden rounded-lg bg-gray-900 border border-gray-800 hover:border-yellow-400 transition">
+            <img 
+                src="{{ $image['image_url'] ?? asset('images/default.jpg') }}" 
+                alt="{{ $image['title'] ?? 'Tanpa Judul' }}" 
+                class="w-full h-48 object-cover transform group-hover:scale-[1.05] transition duration-500">
+            
+            <div class="p-4">
+                <h3 class="font-semibold text-lg text-white">
+                    {{ $image['title'] ?? 'Tanpa Judul' }}
+                </h3>
+                <p class="text-sm text-gray-400">
+                    ID Kategori: {{ $image['category_id'] ?? '-' }} |
+                    {{ \Carbon\Carbon::parse($image['created_at'])->translatedFormat('d M Y') }}
+                </p>
+                <div class="mt-3 flex justify-between items-center">
+                    <a href="{{ route('images.show', $image['id']) }}" 
+                       class="text-xs px-3 py-1 bg-gray-700 text-white rounded hover:bg-gray-600 font-semibold">
+                        View
+                    </a>
+                    <button type="button" class="text-gray-400 hover:text-red-500 transition">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                  d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                        </svg>
+                    </button>
                 </div>
+            </div>
+        </div>
+    @empty
+        <div class="col-span-full text-center text-gray-400 py-10">
+            Tidak ada karya ditemukan.
+        </div>
+    @endforelse
+</div>
 
                 <div class="relative group overflow-hidden rounded-lg bg-gray-900 border border-gray-800 hover:border-yellow-400 transition">
                     <img src="https://images.unsplash.com/photo-1551000673-a621752b02f1?w=400" alt="Bukit Kebo" class="w-full h-48 object-cover transform group-hover:scale-[1.05] transition duration-500">
