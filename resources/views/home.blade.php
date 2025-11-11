@@ -12,15 +12,20 @@
             <div class="text-2xl font-bold">Artrium</div>
             
             <div class="hidden md:flex space-x-8">
-                <a href="{{ route('home') }}" class="hover:text-yellow-400 transition">Home</a>
+                <a href="{{ route('home') }}" class="text-yellow-400 font-semibold transition">Home</a>
                 <a href="{{ route('gallery.index') }}" class="hover:text-yellow-400 transition">Explore</a>
+                
+                {{-- TOMBOL PROFILE BARU --}}
+                @auth
+                    <a href="{{ route('profile.show') }}" class="hover:text-yellow-400 transition">Profile</a>
+                @endauth
             </div>
             
         <div class="flex space-x-3 items-center">
     @auth
         {{-- Jika user sudah login --}}
         
-        {{-- TOMBOL UNGGAH KARYA (CREATE CRUD) --}}
+        {{-- TOMBOL UNGGAH KARYA --}}
         <a href="{{ route('images.create') }}" 
            class="px-4 py-2 bg-yellow-400 text-black rounded-full hover:bg-yellow-500 transition font-semibold text-sm">
            Unggah Karya
