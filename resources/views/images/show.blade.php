@@ -7,7 +7,9 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
     
-    {{-- PERBAIKAN Wajib: Impor Tailwind CSS agar styling Anda bekerja --}}
+    {{-- Memastikan Carbon tersedia untuk formatting tanggal --}}
+    @php use Carbon\Carbon; @endphp
+    
     <script src="https://cdn.tailwindcss.com"></script> 
     
     <style>
@@ -141,7 +143,7 @@
                 @endif
                 {{-- Tanggal --}}
                 <span class="text-white date">
-                     • 📅 Diunggah pada {{ \Carbon\Carbon::parse($image['created_at'] ?? now())->format('d M Y, H:i') }}
+                     • 📅 Diunggah pada {{ Carbon::parse($image['created_at'] ?? now())->format('d M Y, H:i') }}
                 </span>
             </div>
 
@@ -170,7 +172,9 @@
             </div>
             
             <div class="comment-area">
-                <h4 class="text-light mb-3">Komentar (0)</h4>
+                
+                {{-- PERBAIKAN: COUNTER KOMENTAR DINAMIS --}}
+                <h4 class="text-light mb-3">Komentar ({{ count($comments ?? []) }})</h4>
                 
                 {{-- NOTIFIKASI SUKSES/GAGAL --}}
                 @if (session('success'))
@@ -196,16 +200,23 @@
                     <p class="text-center text-gray-500">Silakan <a href="{{ route('login') }}" class="text-warning">Login</a> untuk meninggalkan komentar.</p>
                 @endauth
 
-                {{-- DAFTAR KOMENTAR (Kini Bersih) --}}
+                {{-- PERBAIKAN: DAFTAR KOMENTAR DINAMIS --}}
                 <div id="comments-list">
-                    {{-- DI SINI TEMPAT LOOPING DATA KOMENTAR DARI DATABASE --}}
-                    {{-- @if (!empty($comments)) --}}
-                    {{-- @foreach ($comments as $comment) --}}
-                        {{-- ... tampilkan komentar dinamis di sini ... --}}
-                    {{-- @endforeach --}}
-                    {{-- @else --}}
+                    @forelse ($comments ?? [] as $comment)
+                        <div class="comment-item">
+                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                {{-- Menggunakan data user yang di-JOIN dari ImageController --}}
+                                <strong class="text-warning">{{ $comment['user']['name'] ?? 'Pengguna Artrium' }}</strong>
+                                {{-- Memformat tanggal agar lebih mudah dibaca --}}
+                                <small class="text-muted">{{ Carbon::parse($comment['created_at'])->diffForHumans() }}</small>
+                            </div>
+                            {{-- Isi Komentar --}}
+                            <p class="text-light mb-0">{{ $comment['content'] }}</p> 
+                        </div>
+                    @empty
+                        {{-- Teks ini akan muncul jika array $comments kosong --}}
                         <p class="text-center text-gray-500">Belum ada komentar untuk karya ini.</p>
-                    {{-- @endif --}}
+                    @endforelse
                 </div>
             </div>
         </div>
