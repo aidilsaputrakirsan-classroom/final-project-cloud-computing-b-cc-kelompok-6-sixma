@@ -22,6 +22,7 @@ class ProfileController extends Controller
         $user = Auth::user();
         $userId = $user->id;
         $images = [];
+        $likedImages = [];
 
         try {
             // 🔹 Ambil semua karya milik user login
@@ -52,10 +53,35 @@ class ProfileController extends Controller
                 ]);
             }
 
+            // 🔹 Ambil gambar yang disukai user
+            $likedQuery = env('SUPABASE_REST_URL') . '/likes?select=image_id,user_id,images(*)&user_id=eq.' . $userId;
+
+            $likedResponse = Http::withHeaders([
+                'apikey' => env('SUPABASE_ANON_KEY'),
+                'Authorization' => 'Bearer ' . env('SUPABASE_ANON_KEY'),
+            ])->get($likedQuery);
+
+            if ($likedResponse->successful()) {
+                $likedData = $likedResponse->json();
+
+                if (is_array($likedData)) {
+                    $baseStorageUrl = rtrim(env('SUPABASE_URL'), '/') . '/storage/v1/object/public/images/';
+
+                    foreach ($likedData as $like) {
+                        if (isset($like['images'])) {
+                            $image = $like['images'];
+                            $image['image_url'] = $baseStorageUrl . ($image['image_path'] ?? '');
+                            $likedImages[] = $image;
+                        }
+                    }
+                }
+            }
+
             // Kirim data ke view
             return view('profile.index', [
                 'user' => $user,
                 'images' => $images,
+                'likedImages' => $likedImages,
             ]);
 
         } catch (\Exception $e) {
