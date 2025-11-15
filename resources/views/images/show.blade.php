@@ -159,11 +159,11 @@
                 
                 {{-- Tombol aksi --}}
                 <div class="d-flex gap-3">
-                    @auth
+                    {{-- @auth
                         @if (Auth::id() == $image['user_id'])
                             <a href="{{ route('images.edit', $image['id']) }}" class="btn btn-warning btn-sm">Edit Karya</a>
                         @endif
-                    @endauth
+                    @endauth --}}
 
                     <a href="{{ route('gallery.index') }}" class="btn btn-secondary btn-sm">Kembali</a>
                 </div>

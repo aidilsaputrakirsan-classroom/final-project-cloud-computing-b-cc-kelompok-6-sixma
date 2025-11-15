@@ -140,6 +140,24 @@
 </head>
 <body>
 
+    @if(session('error'))
+    <div style="background:red;color:white;padding:15px;border-radius:8px;margin-bottom:20px;">
+        <strong>Error:</strong> {{ session('error') }}
+    </div>
+@endif
+
+@if($errors->any())
+    <div style="background:orange;color:white;padding:15px;border-radius:8px;margin-bottom:20px;">
+        <strong>Validasi gagal:</strong>
+        <ul>
+            @foreach ($errors->all() as $error)
+                <li>{{ $error }}</li>
+            @endforeach
+        </ul>
+    </div>
+@endif
+
+
 <div class="upload-card">
     <h2>Upload Gambar Baru</h2>
 
