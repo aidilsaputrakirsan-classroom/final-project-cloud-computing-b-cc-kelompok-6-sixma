@@ -14,25 +14,40 @@ class ProfileController extends Controller
      */
     public function showProfile()
     {
-        // Pastikan user sudah login (middleware 'auth' menangani juga)
+        // Pastikan user sudah login
         if (!Auth::check()) {
             return redirect()->route('login');
         }
 
         $user = Auth::user();
-        $userId = $user->id;
+        
+        // ✅ FIX KRITIS: Ambil UUID Supabase yang tersimpan di database lokal
+        $userUUID = $user->supabase_uuid ?? null;
+        
         $images = [];
 
-        try {
-            // 🔹 Ambil semua karya milik user login
-            $query = env('SUPABASE_REST_URL') . '/images?select=*'
-                   . '&user_id=eq.' . $userId
-                   . '&order=created_at.desc';
+        if (empty($userUUID)) {
+             Log::warning('UUID Supabase user tidak ditemukan untuk user ID lokal: ' . $user->id);
+             return view('profile.index', [
+                'user' => $user,
+                'images' => $images, // Kirim array kosong
+            ])->with('warning', 'UUID pengguna tidak ditemukan. Sesi mungkin perlu diperbarui.');
+        }
 
-            $response = Http::withHeaders([
-                'apikey' => env('SUPABASE_ANON_KEY'),
-                'Authorization' => 'Bearer ' . env('SUPABASE_ANON_KEY'),
-            ])->get($query);
+        $supabaseHeaders = [
+            'apikey' => env('SUPABASE_ANON_KEY'),
+            'Authorization' => 'Bearer ' . env('SUPABASE_ANON_KEY'),
+        ];
+
+
+        try {
+            // 🔹 Ambil semua karya milik user login, filter menggunakan UUID
+            $query = env('SUPABASE_REST_URL') . '/images?select=*'
+                     // ✅ FIX: Filter berdasarkan UUID
+                    . '&user_id=eq.' . $userUUID 
+                    . '&order=created_at.desc';
+
+            $response = Http::withHeaders($supabaseHeaders)->get($query);
 
             if ($response->successful()) {
                 $imagesData = $response->json();
@@ -46,7 +61,7 @@ class ProfileController extends Controller
                     }
                 }
             } else {
-                Log::warning('⚠️ Supabase gagal ambil data gambar', [
+                Log::warning('⚠️ Supabase gagal ambil data gambar Profile', [
                     'status' => $response->status(),
                     'body' => $response->body(),
                 ]);

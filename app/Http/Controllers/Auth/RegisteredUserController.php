@@ -1,7 +1,5 @@
 <?php
 
-// Artrium/app/Http/Controllers/Auth/RegisteredUserController.php
-
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
@@ -13,111 +11,83 @@ use Illuminate\Auth\Events\Registered;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Http; 
 use Illuminate\Support\Facades\Log;  
-use GuzzleHttp\Exception\ConnectException; // Import Guzzle Connect Exception untuk penanganan error koneksi
+use Illuminate\Support\Str;
 
 class RegisteredUserController extends Controller
 {
     /**
-     * Tampilkan halaman registrasi.
+     * Method untuk menampilkan form register
      */
     public function create()
     {
-        return view('auth.register');
+        return view('auth.register'); 
     }
 
     /**
-     * Tangani permintaan registrasi yang masuk.
+     * Method untuk memproses data register
      */
     public function store(Request $request)
     {
-        // 1. Validasi Input Laravel
-        // Aturan 'unique:users' sudah dihapus karena Primary Key dihandle oleh Supabase (UUID)
+        // 1. Validasi Input
         $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'email', 'max:255'], 
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
         ]);
 
+        $supabaseAuthUrl = env('SUPABASE_URL') . '/auth/v1/signup';
+
         try {
-            // 2. Registrasi ke Supabase Auth
-            $signUpUrl = env('SUPABASE_URL') . '/auth/v1/signup';
-            $anonKey = env('SUPABASE_ANON_KEY');
-            
-            // Menggunakan Guzzle Client mentah untuk koneksi yang lebih andal
-            $client = new \GuzzleHttp\Client(['verify' => false]);
-            
-            $response = $client->post($signUpUrl, [
-                'headers' => [
-                    'apikey' => $anonKey,
-                    'Content-Type' => 'application/json',
-                ],
-                'json' => [
-                    'email' => $request->email,
-                    'password' => $request->password,
-                    'data' => [
-                        'full_name' => $request->name, 
-                    ]
-                ],
-                'timeout' => 20, // Timeout 20 detik
+            // 2. Register ke SUPABASE AUTH DULU
+            $supabaseResponse = Http::withHeaders([
+                'apikey' => env('SUPABASE_ANON_KEY'),
+                'Content-Type' => 'application/json',
+            ])->post($supabaseAuthUrl, [
+                'email' => $request->email,
+                'password' => $request->password,
+                'data' => [
+                    'name' => $request->name, 
+                ]
             ]);
-            
-            // Cek respons Guzzle
-            $status = $response->getStatusCode();
-            $responseBody = $response->getBody()->getContents();
 
-            // ----------------------------------------------------
-            // PENANGANAN ERROR SUPABASE (Status GAGAL: 4xx/5xx)
-            // ----------------------------------------------------
-            if ($status < 200 || $status >= 300) {
-                $error = json_decode($responseBody, true);
-                $errorMessage = $error['msg'] ?? $error['message'] ?? 'Pesan error Supabase tidak tersedia.';
+            if (!$supabaseResponse->successful()) {
+                $errorBody = $supabaseResponse->json();
+                Log::error('Supabase Register Gagal: ' . json_encode($errorBody));
+                
+                if ($supabaseResponse->status() === 400) {
+                    return back()->withInput()->withErrors(['email' => 'Email ini sudah terdaftar di Supabase.']);
+                }
 
-                Log::error('❌ Gagal Registrasi Supabase:', ['status_code' => $status, 'error_message' => $errorMessage]);
-
-                return back()->withInput()->withErrors(['error' => 'Pendaftaran gagal: ' . $status . ' - ' . $errorMessage]);
+                return back()->withInput()->withErrors(['supabase' => $errorBody['msg'] ?? 'Registrasi Supabase gagal.']);
             }
-            
-            // ----------------------------------------------------
-            // PENANGANAN SUKSES SUPABASE (Status SUKSES: 2xx)
-            // ----------------------------------------------------
 
-            $supabaseData = json_decode($responseBody, true);
-            
-            // Cari UUID pengguna di beberapa tempat yang mungkin dikembalikan
-            $supabaseUser = $supabaseData['user'] ?? null;
-            $supabaseUuid = $supabaseUser['id'] ?? $supabaseData['id'] ?? null;
+            $supabaseData = $supabaseResponse->json();
 
-            if (empty($supabaseUuid)) {
-                 Log::error('❌ Supabase Sukses Tapi UUID Hilang:', ['response' => $supabaseData]);
-                 
-                 // Jika UUID hilang, asumsikan pendaftaran sukses dan alihkan ke Login
-                 return redirect()->route('login')->with('status', 'Pendaftaran berhasil! Silakan masuk menggunakan akun Anda.');
+            // FIX: Mengambil UUID dari respons Supabase
+            $userUUID = $supabaseData['user']['id'] ?? $supabaseData['id'] ?? null;
+            
+            if (empty($userUUID)) {
+                 Log::error('Gagal mengambil UUID setelah register. Data respons: ' . json_encode($supabaseData));
+                 return back()->with('error', 'Registrasi berhasil di Supabase, tapi gagal mengambil UUID.');
             }
-            
-            // 4. Buat User Lokal (Hanya kolom yang ada di migration UUID)
+
+            // 3. Simpan User ke Database LOKAL Laravel (Termasuk UUID)
             $user = User::create([
-                'id' => $supabaseUuid, 
                 'name' => $request->name,
                 'email' => $request->email,
-                'password' => Hash::make(uniqid()), // Menyimpan password hash dummy untuk Laravel
-                // Kolom 'supabase_jwt' TIDAK disertakan di sini karena sudah dihapus dari migration
+                'password' => Hash::make($request->password), 
+                'supabase_uuid' => $userUUID, // Menyimpan UUID
             ]);
 
-            // 5. Otentikasi dan Redirect
-            Auth::login($user); 
+            // 4. Otentikasi
             event(new Registered($user));
-
+            Auth::login($user);
+            
             return redirect('/'); 
 
-        } catch (ConnectException $e) {
-            // Penanganan Koneksi Gagal (Timeout, SSL)
-            Log::error('❌ Guzzle Connect Exception:', ['message' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
-            return back()->withInput()->withErrors(['error' => 'Koneksi Gagal Total! Pesan: ' . $e->getMessage()]);
-
         } catch (\Exception $e) {
-            // Penanganan Exception Umum
-            Log::error('❌ General Exception in Registration:', ['message' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
-            return back()->withInput()->withErrors(['error' => 'Kesalahan sistem: ' . $e->getMessage()]);
+            Log::error('Error pada proses register: ' . $e->getMessage());
+            return back()->with('error', 'Terjadi kesalahan sistem saat registrasi.');
         }
     }
 }

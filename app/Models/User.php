@@ -8,12 +8,8 @@ use Illuminate\Notifications\Notifiable;
 
 class User extends Authenticatable
 {
+    /** @use HasFactory<\Database\Factories\UserFactory> */
     use HasFactory, Notifiable;
-
-    // Konfigurasi untuk UUID Supabase
-    public $incrementing = false;
-    protected $keyType = 'string';
-    protected $primaryKey = 'id';
 
     /**
      * The attributes that are mass assignable.
@@ -21,11 +17,10 @@ class User extends Authenticatable
      * @var list<string>
      */
     protected $fillable = [
-        'id',             // 👈 Menerima UUID dari Supabase
         'name',
         'email',
         'password',
-        'supabase_jwt',   // 👈 Menerima JWT
+        'supabase_uuid', 
     ];
 
     /**
@@ -39,18 +34,6 @@ class User extends Authenticatable
     ];
 
     /**
-     * Memaksa Laravel memuat ulang data dari DB untuk memastikan JWT tersedia di sesi.
-     *
-     * @var list<string>
-     */
-    protected $visible = [
-        'id', 
-        'name',
-        'email',
-        'supabase_jwt', 
-    ]; 
-
-    /**
      * Get the attributes that should be cast.
      *
      * @return array<string, string>
@@ -60,6 +43,8 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            // FIX: Menggunakan 'string' untuk mengatasi masalah escape karakter pada UUID
+            'supabase_uuid' => 'string', 
         ];
     }
 }
