@@ -2,7 +2,6 @@
 
 namespace App\Models;
 
-// use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -21,6 +20,7 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
+        'supabase_uuid', // Kolom UUID untuk Supabase
     ];
 
     /**
@@ -43,6 +43,8 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            // ✅ FIX: Menggunakan 'string' yang didukung Laravel untuk kolom UUID eksternal
+            'supabase_uuid' => 'string', 
         ];
     }
 }
