@@ -20,7 +20,7 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
-        'supabase_uuid', // Kolom UUID untuk Supabase
+        'supabase_uuid', 
     ];
 
     /**
@@ -43,7 +43,7 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
-            // ✅ FIX: Menggunakan 'string' yang didukung Laravel untuk kolom UUID eksternal
+            // FIX: Menggunakan 'string' untuk mengatasi masalah escape karakter pada UUID
             'supabase_uuid' => 'string', 
         ];
     }

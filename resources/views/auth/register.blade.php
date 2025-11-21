@@ -11,6 +11,21 @@
                 <small class="text-dark">Daftar sekarang untuk menjelajahi halaman kami.</small>
             </div>
             <div class="card-body">
+                <!-- 🚨 PENAMBAHAN 1: MENAMPILKAN ERROR GLOBAL -->
+                @if ($errors->any())
+                    <div class="alert alert-danger" role="alert">
+                        <!-- Ambil pesan error pertama yang bukan terkait input spesifik -->
+                        @if ($errors->has('error'))
+                            {{ $errors->first('error') }}
+                        @elseif ($errors->has('email') && !$errors->has('name') && !$errors->has('password'))
+                            {{ $errors->first('email') }}
+                        @else
+                            Mohon periksa kembali input Anda.
+                        @endif
+                    </div>
+                @endif
+                <!-- END PENAMBAHAN 1 -->
+                
                 <form method="POST" action="{{ route('register') }}">
                     @csrf
 
@@ -43,8 +58,11 @@
 
                     <div class="mb-3">
                         <label for="password_confirmation" class="form-label">Konfirmasi Password</label>
+                        <!-- 🚨 PENAMBAHAN 2: Menambahkan is-invalid agar error tampil -->
                         <input id="password_confirmation" type="password" name="password_confirmation" required
-                            class="form-control">
+                            class="form-control @error('password') is-invalid @enderror">
+                        <!-- NOTE: Error untuk confirmation akan ditampilkan di input password di atas, 
+                             namun kelas is-invalid di sini penting agar terlihat merah saat konfirmasi salah. -->
                     </div>
 
                     <div class="d-grid gap-2">
