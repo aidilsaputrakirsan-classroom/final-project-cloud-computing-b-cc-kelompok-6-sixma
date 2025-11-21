@@ -19,7 +19,7 @@ class CommentController extends Controller
         if (!Auth::check()) {
             return back()->with('error', 'Anda harus login untuk berkomentar.');
         }
-        $userId = Auth::id();
+        $userId = Auth::id(); // Mendapatkan ID pengguna (asumsi UUID Supabase)
 
         // 2. Validasi Input
         $request->validate([
@@ -37,11 +37,12 @@ class CommentController extends Controller
 
             Log::info('💾 Data Komentar:', $commentData);
 
-            // 3. Kirim data ke Supabase REST API
+            // 3. Kirim data ke Supabase REST API menggunakan ANON KEY (Kode Awal Anda)
             $databaseUrl = env('SUPABASE_REST_URL') . '/comments'; // Target tabel: comments
             $createComment = Http::withHeaders([
                 'apikey' => env('SUPABASE_ANON_KEY'),
-                'Authorization' => 'Bearer ' . env('SUPABASE_ANON_KEY'),
+                // 🛑 INI YANG MEMBUAT GAGAL RLS: Menggunakan ANON KEY sebagai token Bearer
+                'Authorization' => 'Bearer ' . env('SUPABASE_ANON_KEY'), 
                 'Content-Type' => 'application/json',
                 'Prefer' => 'return=representation'
             ])->post($databaseUrl, $commentData);
@@ -49,6 +50,7 @@ class CommentController extends Controller
             if (!$createComment->successful()) {
                 $errorBody = $createComment->body();
                 Log::error('❌ Gagal menyimpan komentar:', ['status' => $createComment->status(), 'error' => $errorBody]);
+                // Pesan error RLS yang asli akan muncul lagi di sini
                 return back()->with('error', 'Gagal mengirim komentar. (Cek Policy INSERT RLS tabel comments)');
             }
 
@@ -74,10 +76,10 @@ class CommentController extends Controller
         
         try {
             // 2. Kirim permintaan DELETE ke Supabase dengan filter ID dan USER ID
-            // Ini memastikan hanya pemilik komentar yang bisa menghapusnya (Otorisasi)
             $deleteDb = Http::withHeaders([
                 'apikey' => env('SUPABASE_ANON_KEY'),
-                'Authorization' => 'Bearer ' . env('SUPABASE_ANON_KEY'),
+                // Menggunakan ANON KEY di sini juga
+                'Authorization' => 'Bearer ' . env('SUPABASE_ANON_KEY'), 
             ])->delete(env('SUPABASE_REST_URL') . '/comments?id=eq.' . $id . '&user_id=eq.' . $userId);
 
             if (!$deleteDb->successful()) {
