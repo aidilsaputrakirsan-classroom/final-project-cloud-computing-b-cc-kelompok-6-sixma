@@ -4,6 +4,11 @@ namespace App\Providers;
 
 use Illuminate\Support\ServiceProvider;
 
+// Tambahkan ini
+use Illuminate\Support\Facades\View;
+use Illuminate\Support\Facades\Auth;
+use App\Services\NotificationService;
+
 class AppServiceProvider extends ServiceProvider
 {
     /**
@@ -19,6 +24,12 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        //
+        View::composer('*', function ($view) {
+            if (Auth::check()) {
+                $view->with('notifCount', NotificationService::unreadCount(Auth::id()));
+            } else {
+                $view->with('notifCount', 0);
+            }
+        });
     }
 }

@@ -43,6 +43,16 @@
                         </button>
                     </form>
                 @endauth
+                <a href="{{ route('notifications') }}" class="relative hover:text-yellow-400 transition">
+    🔔
+
+    @if ($notifCount > 0)
+        <span class="absolute -top-2 -right-3 bg-red-600 text-white text-xs font-bold px-2 py-0.5 rounded-full">
+            {{ $notifCount }}
+        </span>
+    @endif
+</a>
+
             </div>
         </div>
     </nav>
