@@ -12,10 +12,22 @@
 
     @foreach ($notifications as $notif)
         <div class="border border-gray-700 rounded-lg p-4 mb-4 bg-black bg-opacity-40">
-            <p class="text-lg">{{ $notif['message'] }}</p>
+
+            {{-- Nama user yang komentar --}}
+            <p class="text-yellow-300 font-bold">
+                {{ $notif['users']['name'] ?? 'Pengguna' }}
+            </p>
+
+            {{-- Isi komentar --}}
+            <p class="text-lg">
+                {{ $notif['content'] }}
+            </p>
+
+            {{-- Waktu --}}
             <p class="text-sm text-gray-400 mt-1">
                 {{ \Carbon\Carbon::parse($notif['created_at'])->diffForHumans() }}
             </p>
+
         </div>
     @endforeach
 

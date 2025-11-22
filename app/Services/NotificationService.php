@@ -6,41 +6,29 @@ use Illuminate\Support\Facades\Http;
 
 class NotificationService
 {
-    /**
-     * Buat notifikasi baru
-     */
-    public static function create($userId, $actorId, $imageId, $type)
-    {
-        // Pesan notifikasi berdasarkan jenis
-        $message = match ($type) {
-            'comment' => 'Seseorang mengomentari fotomu.',
-            'save'    => 'Seseorang menyimpan fotomu.',
-            default   => 'Aktivitas baru pada fotomu.'
-        };
-
-        // Kirim ke tabel notifications di Supabase
-        return Http::withHeaders([
-            'apikey'        => env('SUPABASE_ANON_KEY'),
-            'Authorization' => 'Bearer ' . env('SUPABASE_ANON_KEY')
-        ])->post(env('SUPABASE_REST_URL') . '/notifications', [
-            'user_id'  => $userId,
-            'actor_id' => $actorId,
-            'image_id' => $imageId,
-            'type'     => $type,
-            'message'  => $message
-        ]);
-    }
-
-    /**
-     * Hitung jumlah notifikasi yang belum dibaca
-     */
     public static function unreadCount($userId)
     {
-        $response = Http::withHeaders([
-            'apikey'        => env('SUPABASE_ANON_KEY'),
-            'Authorization' => 'Bearer ' . env('SUPABASE_ANON_KEY')
-        ])->get(env('SUPABASE_REST_URL') . "/notifications?user_id=eq.$userId&is_read=eq.false");
+        // 1. Ambil semua gambar milik user
+        $images = Http::withHeaders([
+            'apikey' => env('SUPABASE_ANON_KEY'),
+            'Authorization' => 'Bearer '.env('SUPABASE_ANON_KEY'),
+        ])->get(env('SUPABASE_REST_URL') . "/images?user_id=eq.$userId&select=id")
+          ->json();
 
-        return count($response->json() ?? []);
+        if (!is_array($images) || count($images) === 0) return 0;
+
+        $imageIds = array_column($images, 'id');
+        $imageFilter = implode(',', $imageIds);
+
+        // 2. Hitung komentar baru
+        $comments = Http::withHeaders([
+            'apikey' => env('SUPABASE_ANON_KEY'),
+            'Authorization' => 'Bearer '.env('SUPABASE_ANON_KEY'),
+        ])->get(env('SUPABASE_REST_URL') . "/comments?image_id=in.($imageFilter)")
+          ->json();
+
+        if (!is_array($comments)) return 0;
+
+        return count($comments);
     }
 }

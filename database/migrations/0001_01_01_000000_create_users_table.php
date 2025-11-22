@@ -6,24 +6,20 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
     public function up(): void
     {
         Schema::create('users', function (Blueprint $table) {
-            // 🚨 PERBAIKAN 1: Gunakan UUID sebagai Primary Key
-            $table->uuid('id')->primary(); 
-            // 🚨 PERBAIKAN 2: Tambahkan kolom untuk JWT dan Email Verification
-            $table->string('supabase_jwt')->nullable(); 
+    $table->uuid('id')->primary(); // UUID dari Supabase
+    $table->string('name');
+    $table->string('email')->unique();
+    $table->string('password');
+    $table->text('supabase_jwt')->nullable();
+    $table->rememberToken();
+    $table->timestamp('email_verified_at')->nullable();
 
-            $table->string('name');
-            $table->string('email')->unique();
-            $table->timestamp('email_verified_at')->nullable();
-            $table->string('password'); 
-            $table->rememberToken();
-            $table->timestamps();
-        });
+$table->timestamps();
+});
+
 
         Schema::create('password_reset_tokens', function (Blueprint $table) {
             $table->string('email')->primary();
@@ -32,9 +28,8 @@ return new class extends Migration
         });
 
         Schema::create('sessions', function (Blueprint $table) {
-            // Pastikan foreignId ini juga menggunakan UUID jika user_id adalah UUID
             $table->string('id')->primary();
-            $table->foreignUuid('user_id')->nullable()->index(); // Menggunakan foreignUuid
+            $table->foreignUuid('user_id')->nullable()->index();  // ⭐ UUID foreign key
             $table->string('ip_address', 45)->nullable();
             $table->text('user_agent')->nullable();
             $table->longText('payload');
@@ -42,9 +37,6 @@ return new class extends Migration
         });
     }
 
-    /**
-     * Reverse the migrations.
-     */
     public function down(): void
     {
         Schema::dropIfExists('users');

@@ -22,14 +22,17 @@ class AppServiceProvider extends ServiceProvider
     /**
      * Bootstrap any application services.
      */
-    public function boot(): void
-    {
-        View::composer('*', function ($view) {
-            if (Auth::check()) {
-                $view->with('notifCount', NotificationService::unreadCount(Auth::id()));
-            } else {
-                $view->with('notifCount', 0);
-            }
-        });
-    }
+
+public function boot()
+{
+    View::composer('*', function ($view) {
+        if (Auth::check()) {
+            $view->with('notifCount', NotificationService::unreadCount(Auth::id()));
+        } else {
+            $view->with('notifCount', 0);
+        }
+    });
 }
+
+    }
+
