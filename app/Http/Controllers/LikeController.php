@@ -6,15 +6,10 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use App\Models\Like;
 
 class LikeController extends Controller
 {
-    private function getSupabaseHeaders() {
-        return [
-            'apikey' => env('SUPABASE_ANON_KEY'),
-            'Authorization' => 'Bearer ' . env('SUPABASE_ANON_KEY')
-        ];
-    }
 
     /**
      * Toggle like/unlike untuk gambar
@@ -29,28 +24,19 @@ class LikeController extends Controller
 
         try {
             // Cek apakah sudah like
-            $existingLike = Http::withHeaders($this->getSupabaseHeaders())
-                ->get(env('SUPABASE_REST_URL') . '/likes?user_id=eq.' . $userId . '&image_id=eq.' . $imageId)
-                ->json();
+            $existingLike = Like::where('user_id', $userId)->where('image_id', $imageId)->first();
 
-            if (!empty($existingLike)) {
+            if ($existingLike) {
                 // Unlike: hapus like
-                Http::withHeaders($this->getSupabaseHeaders())
-                    ->delete(env('SUPABASE_REST_URL') . '/likes?user_id=eq.' . $userId . '&image_id=eq.' . $imageId);
+                $existingLike->delete();
 
                 return response()->json(['liked' => false, 'message' => 'Unlike berhasil']);
             } else {
                 // Like: tambah like
-                $data = [
+                Like::create([
                     'user_id' => $userId,
                     'image_id' => $imageId,
-                    'created_at' => now()->toIso8601String()
-                ];
-
-                Http::withHeaders(array_merge($this->getSupabaseHeaders(), [
-                    'Content-Type' => 'application/json',
-                    'Prefer' => 'return=minimal'
-                ]))->post(env('SUPABASE_REST_URL') . '/likes', $data);
+                ]);
 
                 return response()->json(['liked' => true, 'message' => 'Like berhasil']);
             }

@@ -14,7 +14,7 @@ return new class extends Migration
         Schema::create('likes', function (Blueprint $table) {
             $table->id();
             $table->foreignId('user_id')->constrained('users')->onDelete('cascade');
-            $table->foreignId('image_id')->constrained('images')->onDelete('cascade');
+            $table->string('image_id'); // ID dari Supabase
             $table->timestamps();
 
             // Pastikan satu user hanya bisa like satu gambar sekali
