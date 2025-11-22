@@ -6,6 +6,8 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\RegisteredUserController;
 use App\Http\Controllers\CommentController; // Menggunakan CommentController
+use App\Http\Controllers\NotificationController;
+
 
 /*
 |--------------------------------------------------------------------------
@@ -80,3 +82,9 @@ Route::get('/explore', [ImageController::class, 'index'])->name('gallery.index')
 
 // Detail gambar (Rute Dinamis)
 Route::get('images/{id}', [ImageController::class, 'show'])->name('images.show');
+
+// Notif 
+Route::middleware('auth')->get(
+    '/notifications',
+    [NotificationController::class, 'index']
+)->name('notifications');
