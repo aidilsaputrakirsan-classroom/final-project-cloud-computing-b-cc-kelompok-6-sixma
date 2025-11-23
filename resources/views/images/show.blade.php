@@ -7,7 +7,6 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
     
-    {{-- Memastikan Carbon tersedia untuk formatting tanggal --}}
     @php use Carbon\Carbon; @endphp
     
     <script src="https://cdn.tailwindcss.com"></script> 
@@ -91,6 +90,9 @@
             padding: 12px;
             border-radius: 10px;
             margin-bottom: 10px;
+            position: relative; 
+            display: flex;
+            flex-direction: column;
         }
 
         .comment-input-form textarea {
@@ -121,6 +123,50 @@
             padding: 10px 20px;
             transition: all 0.3s ease;
         }
+        
+        .btn-danger { 
+            background-color: #dc3545;
+            border: none;
+            color: #fff;
+            font-weight: 600;
+            border-radius: 12px;
+            padding: 10px 20px;
+            transition: all 0.3s ease;
+        }
+
+        .btn-delete-comment {
+            background-color: #dc3545; 
+            color: #fff; 
+            border: none;
+            border-radius: 8px; 
+            padding: 4px 10px; 
+            font-size: 0.8rem; 
+            font-weight: 600;
+            transition: background-color 0.2s ease;
+            
+            position: absolute;
+            top: 50%; 
+            right: 12px;
+            transform: translateY(-50%); 
+            line-height: 1; 
+        }
+
+        .btn-delete-comment:hover {
+            background-color: #c82333; 
+            color: #fff;
+        }
+        
+        .action-buttons-group {
+            display: flex;
+            gap: 10px; 
+            justify-content: flex-end; 
+            align-items: center; 
+            flex-wrap: wrap; 
+        }
+        .action-buttons-group form {
+            margin-bottom: 0; 
+        }
+
     </style>
 </head>
 <body>
@@ -129,70 +175,85 @@
     <div class="image-card">
         <h2>{{ $image['title'] ?? 'Judul Tidak Ada' }}</h2>
 
-        {{-- Gambar dari Supabase --}}
         <img src="{{ $image['image_url'] ?? 'https://via.placeholder.com/700x500?text=Gambar+Hilang' }}" 
              alt="{{ $image['title'] ?? 'Gambar' }}"
              onerror="this.src='https://via.placeholder.com/500x350?text=Image+Not+Found'">
         
         <div class="image-content">
             
-            {{-- Bagian Metadata Gambar (Kategori & Tanggal) --}}
             <div class="info text-center mt-3">
-                @if(!empty($image['category_id']))
-                    <span class="badge bg-warning text-dark me-2">🏷️ Kategori: {{ $image['category_name'] ?? $image['category_id'] }}</span> 
+                @if(!empty($image['categories']['name']))
+                    <span class="badge bg-warning text-dark me-2">🏷️ Kategori: {{ $image['categories']['name'] }}</span> 
+                @else
+                     <span class="badge bg-secondary text-light me-2">🏷️ Kategori: N/A</span> 
                 @endif
-                {{-- Tanggal --}}
                 <span class="text-white date">
-                     • 📅 Diunggah pada {{ Carbon::parse($image['created_at'] ?? now())->format('d M Y, H:i') }}
+                    • 📅 Diunggah pada {{ Carbon::parse($image['created_at'] ?? now())->format('d M Y, H:i') }}
                 </span>
             </div>
 
-            {{-- Deskripsi Gambar --}}
             <p class="desc">
                 {{ $image['description'] ?? 'Tidak ada deskripsi tersedia.' }}
             </p>
             
-            {{-- Penulis & Tombol Aksi --}}
             <div class="d-flex justify-content-between align-items-center mb-4 border-top pt-3">
                 
                 <div class="fw-bold text-light">
-                    Oleh: <span class="text-warning">{{ $image['user_name'] ?? 'Pengguna Artrium' }}</span>
+                    Oleh: <span class="text-warning">{{ $image['users']['name'] ?? 'Pengguna Artrium' }}</span>
                 </div>
                 
-                {{-- Tombol aksi --}}
-                <div class="d-flex gap-3">
-                    {{-- @auth
-                        @if (Auth::id() == $image['user_id'])
-                            <a href="{{ route('images.edit', $image['id']) }}" class="btn btn-warning btn-sm">Edit Karya</a>
-                        @endif
-                    @endauth --}}
+                {{-- BLOK AKSI KARYA --}}
+                <div class="action-buttons-group">
+                    
+                    @php
+                        // Cek apakah pengguna adalah pemilik karya
+                        $isOwner = Auth::check() && (Auth::user()->supabase_uuid === ($image['user_id'] ?? null));
+                        // Tentukan tujuan tombol Kembali
+                        $backRoute = $isOwner ? route('profile.show') : route('gallery.index');
+                        $backText = $isOwner ? 'Kembali ke Profil' : 'Kembali';
+                    @endphp
+                    
+                    @if ($isOwner)
+                        {{-- HANYA MUNCUL JIKA PEMILIK KARYA --}}
+                        <a href="{{ route('images.edit', $image['id']) }}" class="btn btn-warning btn-sm">Edit Karya</a>
+                        
+                        <form action="{{ route('images.destroy', $image['id']) }}" method="POST" onsubmit="return confirm('Apakah Anda yakin ingin menghapus karya ini?');">
+                            @csrf
+                            @method('DELETE')
+                            <button type="submit" class="btn btn-danger btn-sm">Hapus</button>
+                        </form>
+                    @endif
 
-                    <a href="{{ route('gallery.index') }}" class="btn btn-secondary btn-sm">Kembali</a>
+                    {{-- TOMBOL KEMBALI OTOMATIS --}}
+                    <a href="{{ $backRoute }}" class="btn btn-secondary btn-sm">{{ $backText }}</a>
                 </div>
             </div>
             
             <div class="comment-area">
                 
-                {{-- PERBAIKAN: COUNTER KOMENTAR DINAMIS --}}
-                <h4 class="text-light mb-3">Komentar ({{ count($comments ?? []) }})</h4>
+                {{-- PERBAIKAN: Menggunakan $image['comments'] untuk counter --}}
+                <h4 class="text-light mb-3">Komentar ({{ count($image['comments'] ?? []) }})</h4>
                 
                 {{-- NOTIFIKASI SUKSES/GAGAL --}}
                 @if (session('success'))
                     <div class="alert alert-success">{{ session('success') }}</div>
                 @endif
+                {{-- FIX KRITIS: Mengamankan tampilan error agar tidak fatal --}}
                 @if (session('error'))
                     <div class="alert alert-danger">{{ session('error') }}</div>
                 @endif
+                {{-- Hapus blok error validasi Blade yang lama --}}
 
                 {{-- FORM KOMENTAR BARU --}}
                 @auth
                     <form action="{{ route('comments.store', $image['id']) }}" method="POST" class="comment-input-form mb-4">
                         @csrf
                         <div class="mb-2">
-                            <textarea name="content" class="form-control" rows="2" placeholder="Tulis komentar Anda..." required></textarea>
-                            @error('content')
-                                <div class="text-danger mt-1">{{ $message }}</div>
-                            @enderror
+                            {{-- FIX: Tambahkan old('content') untuk mempertahankan input --}}
+                            <textarea name="content" class="form-control" rows="2" placeholder="Tulis komentar Anda..." required>{{ old('content') }}</textarea>
+                            @if ($errors->has('content'))
+                                <div class="text-danger mt-1">{{ $errors->first('content') }}</div>
+                            @endif
                         </div>
                         <button type="submit" class="btn btn-warning w-100">Kirim Komentar</button>
                     </form>
@@ -200,21 +261,30 @@
                     <p class="text-center text-gray-500">Silakan <a href="{{ route('login') }}" class="text-warning">Login</a> untuk meninggalkan komentar.</p>
                 @endauth
 
-                {{-- PERBAIKAN: DAFTAR KOMENTAR DINAMIS --}}
                 <div id="comments-list">
-                    @forelse ($comments ?? [] as $comment)
+                    {{-- PERBAIKAN: Menggunakan $image['comments'] untuk loop --}}
+                    @forelse ($image['comments'] ?? [] as $comment) 
                         <div class="comment-item">
-                            <div class="d-flex justify-content-between align-items-center mb-1">
-                                {{-- Menggunakan data user yang di-JOIN dari ImageController --}}
-                                <strong class="text-warning">{{ $comment['user']['name'] ?? 'Pengguna Artrium' }}</strong>
-                                {{-- Memformat tanggal agar lebih mudah dibaca --}}
-                                <small class="text-muted">{{ Carbon::parse($comment['created_at'])->diffForHumans() }}</small>
+                            <div class="comment-text-container" style="padding-right: 70px;"> 
+                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                    <strong class="text-warning">{{ $comment['users']['name'] ?? 'Pengguna Artrium' }}</strong>
+                                    <small class="text-muted">{{ Carbon::parse($comment['created_at'])->diffForHumans() }}</small>
+                                </div>
+                                <p class="text-light mb-0">{{ $comment['content'] }}</p>
                             </div>
-                            {{-- Isi Komentar --}}
-                            <p class="text-light mb-0">{{ $comment['content'] }}</p> 
+                            
+                            {{-- TOMBOL HAPUS KOMENTAR (DIPERCANTIK & DIPOSISI TENGAH) --}}
+                            @auth
+                                @if (Auth::user()->supabase_uuid === $comment['user_id'])
+                                    <form action="{{ route('comments.destroy', $comment['id']) }}" method="POST" onsubmit="return confirm('Hapus komentar ini?');">
+                                        @csrf
+                                        @method('DELETE')
+                                        <button type="submit" class="btn-delete-comment">Hapus</button>
+                                    </form>
+                                @endif
+                            @endauth
                         </div>
                     @empty
-                        {{-- Teks ini akan muncul jika array $comments kosong --}}
                         <p class="text-center text-gray-500">Belum ada komentar untuk karya ini.</p>
                     @endforelse
                 </div>
@@ -223,5 +293,6 @@
     </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

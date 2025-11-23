@@ -11,6 +11,28 @@
                 <small class="text-dark">Masuk ke akun Anda.</small>
             </div>
             <div class="card-body">
+                
+                <!-- FIX KRITIS: MENAMPILKAN SEMUA ERROR VALIDASI DAN SISTEM -->
+                @if ($errors->any())
+                    <div class="alert alert-danger" role="alert">
+                        <strong class="fw-bold">Mohon periksa kesalahan input atau sistem berikut:</strong>
+                        <ul class="mt-1 mb-0">
+                            @foreach ($errors->all() as $error)
+                                <li>{{ $error }}</li>
+                            @endforeach
+                        </ul>
+                    </div>
+                @endif
+
+                <!-- MENAMPILKAN ERROR SESSION (JIKA ADA) -->
+                @if (session('error'))
+                    <div class="alert alert-danger" role="alert">
+                        <strong class="fw-bold">Error Sistem:</strong>
+                        <p class="mb-0">{{ session('error') }}</p>
+                    </div>
+                @endif
+                <!-- END FIX KRITIS -->
+
                 <form method="POST" action="{{ route('login') }}">
                     @csrf
 
@@ -44,4 +66,21 @@
         </div>
     </div>
 </div>
+<!-- SCRIPT AUTO-REFRESH UNTUK MENGATASI 419 -->
+<script>
+    // Fungsi untuk memperingatkan pengguna tentang 419 jika token kedaluwarsa
+    function checkCsrfExpiration() {
+        // Asumsi sesi default Laravel adalah 120 menit (2 jam).
+        // Kita paksa refresh jika form sudah terbuka selama 30 menit (1800 detik)
+        const formTime = Date.now() / 1000;
+        const formTimestamp = {{ time() }}; // Waktu form dimuat
+        const maxTime = 1800; // 30 menit
+
+        if (formTime - formTimestamp > maxTime) {
+            alert("Sesi keamanan (CSRF) Anda telah berakhir. Halaman akan dimuat ulang.");
+            window.location.reload();
+        }
+    }
+    // checkCsrfExpiration(); // Di nonaktifkan karena sering memicu alert
+</script>
 @endsection
