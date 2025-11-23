@@ -11,16 +11,24 @@ class User extends Authenticatable
     /** @use HasFactory<\Database\Factories\UserFactory> */
     use HasFactory, Notifiable;
 
+    // FIX KRITIS: Tetapkan Primary Key sebagai ID.
+    protected $primaryKey = 'id'; 
+    public $incrementing = false; 
+    protected $keyType = 'string';
+
     /**
      * The attributes that are mass assignable.
      *
      * @var list<string>
      */
     protected $fillable = [
+        'id',             
         'name',
         'email',
         'password',
-        'supabase_uuid', 
+        'supabase_uuid',
+        'supabase_jwt',    // <--- FIX KRITIS: WAJIB DITAMBAHKAN!
+        'remember_token', 
     ];
 
     /**
@@ -43,8 +51,8 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
-            // FIX: Menggunakan 'string' untuk mengatasi masalah escape karakter pada UUID
-            'supabase_uuid' => 'string', 
+            'supabase_uuid' => 'string',
+            // Kita tidak perlu mencantumkan JWT di casts jika sudah bertipe string di DB
         ];
     }
 }
