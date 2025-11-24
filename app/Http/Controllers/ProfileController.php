@@ -21,7 +21,7 @@ class ProfileController extends Controller
 
         $user = Auth::user();
         
-        // ✅ FIX KRITIS: Ambil UUID Supabase yang tersimpan di database lokal
+        // Ambil UUID Supabase yang tersimpan di database lokal
         $userUUID = $user->supabase_uuid ?? null;
         
         $images = [];
@@ -37,13 +37,15 @@ class ProfileController extends Controller
         $supabaseHeaders = [
             'apikey' => env('SUPABASE_ANON_KEY'),
             'Authorization' => 'Bearer ' . env('SUPABASE_ANON_KEY'),
+            'Content-Type' => 'application/json', // Tambahkan Content-Type untuk konsistensi
         ];
 
 
         try {
             // 🔹 Ambil semua karya milik user login, filter menggunakan UUID
-            $query = env('SUPABASE_REST_URL') . '/images?select=*'
-                     // ✅ FIX: Filter berdasarkan UUID
+            $query = env('SUPABASE_REST_URL') 
+                    // FIX: Gunakan JOIN/Embedding untuk mengambil nama kategori
+                    . '/images?select=*,category:category_id(name)' 
                     . '&user_id=eq.' . $userUUID 
                     . '&order=created_at.desc';
 
@@ -56,7 +58,10 @@ class ProfileController extends Controller
                     $baseStorageUrl = rtrim(env('SUPABASE_URL'), '/') . '/storage/v1/object/public/images/';
 
                     foreach ($imagesData as $image) {
+                        // Tambahkan URL Gambar
                         $image['image_url'] = $baseStorageUrl . ($image['image_path'] ?? '');
+                        // Hitung jumlah karya (untuk ditampilkan di view)
+                        $image['karya_count'] = count($imagesData); 
                         $images[] = $image;
                     }
                 }
@@ -71,6 +76,7 @@ class ProfileController extends Controller
             return view('profile.index', [
                 'user' => $user,
                 'images' => $images,
+                'karya_count' => count($images), // Kirim jumlah karya secara eksplisit
             ]);
 
         } catch (\Exception $e) {
