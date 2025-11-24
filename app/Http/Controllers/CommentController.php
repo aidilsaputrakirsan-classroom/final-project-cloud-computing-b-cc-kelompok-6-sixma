@@ -26,7 +26,6 @@ class CommentController extends Controller
 
         if (empty($userJWT)) {
             Log::error('JWT Pengguna Kosong saat operasi komentar.');
-            // Mengembalikan anon key, tapi ini seharusnya gagal di RLS Supabase
             return [
                 'apikey' => env('SUPABASE_ANON_KEY'),
                 'Authorization' => 'Bearer ' . env('SUPABASE_ANON_KEY'),
@@ -159,7 +158,7 @@ class CommentController extends Controller
             $databaseUrl = env('SUPABASE_REST_URL');
             
             // 1. AMBIL ID GAMBAR DULU SEBELUM HAPUS
-            $headers = $this->getSupabaseHeaders(); // Gunakan headers anon key untuk READ
+            $headers = $this->getSupabaseHeaders(); 
             $commentUrl = $databaseUrl . '/comments?select=image_id&id=eq.'.$id;
             $commentResponse = Http::withHeaders($headers)->get($commentUrl);
             
@@ -167,12 +166,9 @@ class CommentController extends Controller
             if ($commentResponse->successful() && !empty($commentResponse->json())) {
                  $imageId = $commentResponse->json()[0]['image_id'] ?? null;
             } else {
-                 // Komentar tidak ditemukan atau gagal diakses
                  Log::warning('⚠️ Gagal mengambil image_id untuk komentar: ' . $id);
-                 // Lanjutkan DELETE, tapi mungkin akan gagal di Supabase
             }
 
-            // Memastikan user yang login adalah pemilik komentar (ini juga harus dijamin oleh RLS di Supabase)
             // Kriteria DELETE Supabase: ID komentar = $id DAN user_id = user yang sedang login
             $deleteUrl = $databaseUrl . '/comments?id=eq.'.$id.'&user_id=eq.'.Auth::user()->supabase_uuid;
 
@@ -184,7 +180,6 @@ class CommentController extends Controller
                  $errorBody = $response->body();
                  Log::error('❌ COMMENT_DELETE_FAILURE:', ['status' => $response->status(), 'error_body' => $errorBody, 'comment_id' => $id]);
                 
-                 // RLS biasanya mengembalikan 404 (Not Found) jika policy tidak mengizinkan DELETE
                  $message = $response->status() == 401 
                     ? 'Akses ditolak (401). Policy RLS DELETE "comments" salah.' 
                     : 'Gagal menghapus komentar. Komentar mungkin sudah tidak ada atau bukan milik Anda. (HTTP Status: ' . $response->status() . ')';
@@ -196,9 +191,6 @@ class CommentController extends Controller
             if ($imageId) {
                 Cache::forget('images_detail_' . $imageId);
             } else {
-                // Jika ID gambar tidak ditemukan di langkah 1, mungkin cache key berbeda.
-                // Kita coba hapus cache yang mungkin terkait dengan ID yang sama dengan asumsi ID image = ID comment (ini RENTAN ERROR)
-                // Lebih baik log warning dan biarkan cache di-update di kunjungan berikutnya.
                 Log::warning('⚠️ Gagal menghapus cache: image ID tidak ditemukan untuk komentar ' . $id);
             }
             

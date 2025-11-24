@@ -3,11 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ $image['title'] }} - Detail Karya</title>
+    <title>{{ $image['title'] ?? 'Detail Karya' }} - Detail Karya</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
     
-    {{-- Tambahkan Font Awesome untuk Ikon Bendera/Report --}}
+    {{-- Tambahkan Font Awesome untuk Ikon --}}
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     
     @php use Carbon\Carbon; @endphp
@@ -15,7 +15,7 @@
     <script src="https://cdn.tailwindcss.com"></script> 
     
     <style>
-        /* ======== STYLING CSS ANDA ======== */
+        /* ======== STYLING CSS UTAMA & FONT FIX ======== */
         body {
             background-color: #0A0A0A;
             color: #f8f9fa;
@@ -35,17 +35,10 @@
         }
 
         .image-content {
-            padding: 0 20px;
-            text-align: left;
+             padding: 0 20px;
+             text-align: left;
         }
-
-        .image-card h2 {
-            color: #F6C74D;
-            font-weight: 700;
-            margin-bottom: 20px;
-            text-align: center;
-        }
-
+        
         .image-card img {
             max-width: 100%;
             max-height: 85vh; 
@@ -59,35 +52,42 @@
             margin-left: auto;
             margin-right: auto;
         }
-
-        .image-card img:hover {
-            transform: scale(1.02);
-            box-shadow: 0 0 35px rgba(246, 199, 77, 0.4);
-        }
-
-        .info {
-            color: #c9a94a;
-            font-size: 0.95rem;
-            margin-bottom: 10px;
+        
+        /* Judul di tengah card */
+        .image-card h2 {
+            font-weight: 700;
+            color: #F6C74D;
+            margin-bottom: 25px;
             text-align: center;
         }
 
+        /* FIX FINAL: Info Kategori dan Tanggal */
+        .info {
+            padding-bottom: 8px; 
+            margin-bottom: 8px; 
+            border-bottom: 1px solid rgba(246, 199, 77, 0.1);
+        }
+
+        /* FIX FINAL: Deskripsi dan Jarak */
         .desc {
-            color: #ddd;
-            font-size: 1rem;
-            margin-top: 10px;
-            margin-bottom: 25px;
-            text-align: justify;
+            margin-top: 10px; 
+            margin-bottom: 15px; 
+            font-size: 1.05rem;
         }
         
+        /* FIX: Blok aksi utama */
+        .action-buttons-group {
+             gap: 12px; 
+        }
+
         /* ======== STYLING KOMENTAR & BUTTONS ======== */
+
         .comment-area {
             margin-top: 30px;
             padding-top: 20px;
             border-top: 1px solid rgba(246, 199, 77, 0.2);
             text-align: left;
         }
-
         .comment-item {
             background-color: rgba(30, 30, 30, 0.9);
             padding: 12px;
@@ -98,59 +98,43 @@
             flex-direction: column;
         }
 
-        .comment-input-form textarea {
-            background: rgba(40, 40, 40, 0.9);
-            color: #fff;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 10px;
-            resize: none;
+        /* Gaya Tombol Umum */
+        .btn-warning, .btn-secondary, .btn-danger, .btn-danger-outline {
+             font-weight: 600;
+             border-radius: 8px;
+             padding: 8px 15px;
+             transition: all 0.2s ease;
+             font-size: 0.9rem;
         }
 
         .btn-warning {
             background-color: #F6C74D;
             border: none;
             color: #0A0A0A;
-            font-weight: 700;
-            border-radius: 12px;
-            padding: 10px 20px;
-            transition: all 0.3s ease;
-            box-shadow: 0 0 10px rgba(246, 199, 77, 0.3);
         }
-
         .btn-secondary {
-            background-color: rgba(255, 255, 255, 0.1);
+            background-color: rgba(255, 255, 255, 0.15); 
             border: none;
             color: #f8f9fa;
-            font-weight: 600;
-            border-radius: 12px;
-            padding: 10px 20px;
-            transition: all 0.3s ease;
         }
-        
-        .btn-danger-outline { 
-            background: none;
-            border: 1px solid #dc3545;
-            color: #dc3545;
-            font-weight: 600;
-            border-radius: 12px;
-            padding: 10px 20px;
-            transition: all 0.3s ease;
-        }
-        .btn-danger-outline:hover {
-            background-color: #dc3545;
-            color: #fff;
-        }
-        
         .btn-danger { 
             background-color: #dc3545;
             border: none;
             color: #fff;
-            font-weight: 600;
-            border-radius: 12px;
-            padding: 10px 20px;
-            transition: all 0.3s ease;
+        }
+        /* Gaya Tombol Report (btn-danger-outline) */
+        .btn-danger-outline { 
+            background-color: rgba(255, 255, 255, 0.15); 
+            border: none; 
+            color: #dc3545; 
+        }
+        .btn-danger-outline:hover {
+             background-color: rgba(220, 53, 69, 0.1);
+             color: #fff;
         }
 
+
+        /* Tombol Hapus Komentar (Di dalam card) */
         .btn-delete-comment {
             background-color: #dc3545; 
             color: #fff; 
@@ -158,51 +142,64 @@
             border-radius: 8px; 
             padding: 4px 10px; 
             font-size: 0.8rem; 
-            font-weight: 600;
-            transition: background-color 0.2s ease;
             
-            position: absolute;
+            position: absolute; 
             top: 50%; 
             right: 12px;
             transform: translateY(-50%); 
-            line-height: 1; 
         }
 
-        .btn-delete-comment:hover {
-            background-color: #c82333; 
-            color: #fff;
-        }
-        
-        .action-buttons-group {
-            display: flex;
-            gap: 10px; 
-            justify-content: flex-end; 
-            align-items: center; 
-            flex-wrap: wrap; 
-        }
-        .action-buttons-group form {
-            margin-bottom: 0; 
-        }
-        
-        /* Modal Styling for Dark Theme */
-        .modal-content {
-            background-color: rgba(20, 20, 20, 0.95);
-            color: #f8f9fa;
-            border: 1px solid rgba(246, 199, 77, 0.25);
-            border-radius: 15px;
-        }
-        .modal-header {
-            border-bottom: 1px solid rgba(246, 199, 77, 0.1);
-        }
-        .modal-footer {
-            border-top: 1px solid rgba(246, 199, 77, 0.1);
-        }
-        .form-control-dark {
-            background-color: rgba(40, 40, 40, 0.9);
+        /* Input Komentar */
+         .comment-input-form textarea {
+            background: rgba(40, 40, 40, 0.9);
             color: #fff;
             border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            resize: none;
+        }
+        
+        /* FIX: Agar tombol aksi tidak terlalu tinggi dari tulisan "Oleh" */
+        .d-flex.justify-content-between.align-items-center.mb-4.pt-3 {
+             padding-top: 10px !important; 
         }
 
+        /* ======== STYLING MODAL REPORT (DARK THEME) ======== */
+        .modal-content {
+            background-color: rgba(30, 30, 30, 1); /* Background gelap */
+            color: white;
+            border-radius: 12px;
+            border: 1px solid rgba(246, 199, 77, 0.15);
+        }
+        .modal-header {
+             border-bottom-color: rgba(246, 199, 77, 0.15) !important;
+        }
+        .modal-footer {
+             border-top-color: rgba(246, 199, 77, 0.15) !important;
+        }
+
+        /* Styling Form Control Gelap */
+        .form-control-dark {
+            background-color: rgba(40, 40, 40, 1);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .form-control-dark:focus {
+            background-color: rgba(40, 40, 40, 1);
+            color: white;
+            border-color: #F6C74D;
+            box-shadow: 0 0 0 0.25rem rgba(246, 199, 77, 0.25);
+        }
+        .form-control-dark::placeholder {
+            color: #9ca3af;
+        }
+        .form-select.form-control-dark {
+             /* Perbaiki bug panah di select */
+             background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23ffffff' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M2 5l6 6 6-6'/%3e%3c/svg%3e");
+             background-color: rgba(40, 40, 40, 1);
+        }
+        .btn-close-white {
+             filter: invert(1) grayscale(100%) brightness(200%);
+        }
     </style>
 </head>
 <body>
@@ -218,11 +215,7 @@
         <div class="image-content">
             
             <div class="info text-center mt-3">
-                @if(!empty($image['categories']['name']))
-                    <span class="badge bg-warning text-dark me-2">🏷️ Kategori: {{ $image['categories']['name'] }}</span> 
-                @else
-                    <span class="badge bg-secondary text-light me-2">🏷️ Kategori: N/A</span> 
-                @endif
+                <span class="badge bg-warning text-dark me-2">🏷️ Kategori: {{ $image['category_name'] ?? 'N/A' }}</span> 
                 <span class="text-white date">
                     • 📅 Diunggah pada {{ Carbon::parse($image['created_at'] ?? now())->format('d M Y, H:i') }}
                 </span>
@@ -232,7 +225,8 @@
                 {{ $image['description'] ?? 'Tidak ada deskripsi tersedia.' }}
             </p>
             
-            <div class="d-flex justify-content-between align-items-center mb-4 border-top pt-3">
+            {{-- BLOK UTAMA AKSI --}}
+            <div class="d-flex justify-content-between align-items-center mb-4 pt-3">
                 
                 <div class="fw-bold text-light">
                     Oleh: <span class="text-warning">{{ $image['users']['name'] ?? 'Pengguna Artrium' }}</span>
@@ -242,23 +236,27 @@
                 <div class="action-buttons-group">
                     
                     @php
-                        // Cek apakah pengguna adalah pemilik karya
                         $isOwner = Auth::check() && (Auth::user()->supabase_uuid === ($image['user_id'] ?? null));
-                        // Tentukan tujuan tombol Kembali
                         $backRoute = $isOwner ? route('profile.show') : route('gallery.index');
                         $backText = $isOwner ? 'Kembali ke Profil' : 'Kembali';
                     @endphp
                     
                     @if ($isOwner)
-                        {{-- HANYA MUNCUL JIKA PEMILIK KARYA --}}
                         <a href="{{ route('images.edit', $image['id']) }}" class="btn btn-warning btn-sm">Edit Karya</a>
                         
-                        {{-- TOMBOL HAPUS KARYA (Menggunakan Modal Konfirmasi) --}}
-                        <button type="button" class="btn btn-danger btn-sm" data-bs-toggle="modal" data-bs-target="#deleteImageModal">
+                        {{-- TOMBOL HAPUS KARYA (Picu Modal Konfirmasi) --}}
+                         <button type="button" 
+                                 class="btn btn-danger btn-sm" 
+                                 data-bs-toggle="modal" 
+                                 data-bs-target="#deleteConfirmModal" 
+                                 data-form-target="#delete-image-form"
+                                 data-delete-type="karya"
+                                 data-delete-name="{{ $image['title'] ?? 'ini' }}">
                             Hapus
                         </button>
+                        
                     @else
-                        {{-- TOMBOL LAPORKAN KARYA (Hanya jika bukan pemilik dan sudah login) --}}
+                        {{-- TOMBOL LAPORKAN KARYA (Sekarang terlihat dan styling benar) --}}
                         @auth
                             <button type="button" class="btn btn-danger-outline btn-sm" data-bs-toggle="modal" data-bs-target="#reportModal">
                                 🚩 Laporkan Karya
@@ -271,9 +269,16 @@
                 </div>
             </div>
             
+            {{-- FORM HAPUS KARYA YANG TERSEMBUNYI --}}
+            @if ($isOwner)
+                <form id="delete-image-form" action="{{ route('images.destroy', $image['id']) }}" method="POST" style="display:none;">
+                    @csrf
+                    @method('DELETE')
+                </form>
+            @endif
+            
             <div class="comment-area">
                 
-                {{-- PERBAIKAN: Menggunakan $image['comments'] untuk counter --}}
                 <h4 class="text-light mb-3">Komentar ({{ count($image['comments'] ?? []) }})</h4>
                 
                 {{-- NOTIFIKASI SUKSES/GAGAL --}}
@@ -289,7 +294,6 @@
                     <form action="{{ route('comments.store', $image['id']) }}" method="POST" class="comment-input-form mb-4">
                         @csrf
                         <div class="mb-2">
-                            {{-- FIX: Tambahkan old('content') untuk mempertahankan input --}}
                             <textarea name="content" class="form-control" rows="2" placeholder="Tulis komentar Anda..." required>{{ old('content') }}</textarea>
                             @if ($errors->has('content'))
                                 <div class="text-danger mt-1">{{ $errors->first('content') }}</div>
@@ -302,9 +306,8 @@
                 @endauth
 
                 <div id="comments-list">
-                    {{-- PERBAIKAN: Menggunakan $image['comments'] untuk loop --}}
                     @forelse ($image['comments'] ?? [] as $comment) 
-                        <div class="comment-item">
+                        <div class="comment-item position-relative"> 
                             <div class="comment-text-container" style="padding-right: 70px;"> 
                                 <div class="d-flex justify-content-between align-items-center mb-1">
                                     <strong class="text-warning">{{ $comment['users']['name'] ?? 'Pengguna Artrium' }}</strong>
@@ -313,39 +316,30 @@
                                 <p class="text-light mb-0">{{ $comment['content'] }}</p>
                             </div>
                             
-                            {{-- TOMBOL HAPUS KOMENTAR (Menggunakan Modal Konfirmasi) --}}
+                            {{-- TOMBOL HAPUS KOMENTAR (Picu Modal Konfirmasi) --}}
                             @auth
                                 @if (Auth::user()->supabase_uuid === $comment['user_id'])
-                                    <button type="button" class="btn-delete-comment" data-bs-toggle="modal" data-bs-target="#deleteCommentModal-{{ $comment['id'] }}">
+                                    <button type="button" 
+                                            class="btn-delete-comment"
+                                            data-bs-toggle="modal" 
+                                            data-bs-target="#deleteConfirmModal" 
+                                            data-form-target="#delete-comment-form-{{ $comment['id'] }}"
+                                            data-delete-type="komentar"
+                                            data-delete-name="dari {{ $comment['users']['name'] ?? 'Anda' }}">
                                         Hapus
                                     </button>
+                                    
+                                    {{-- FORM HAPUS KOMENTAR YANG TERSEMBUNYI --}}
+                                    <form id="delete-comment-form-{{ $comment['id'] }}" 
+                                          action="{{ route('comments.destroy', $comment['id']) }}" 
+                                          method="POST" 
+                                          style="display:none;">
+                                        @csrf
+                                        @method('DELETE')
+                                    </form>
                                 @endif
                             @endauth
                         </div>
-
-                        {{-- MODAL KONFIRMASI HAPUS KOMENTAR --}}
-                        <div class="modal fade" id="deleteCommentModal-{{ $comment['id'] }}" tabindex="-1" aria-labelledby="deleteCommentModalLabel-{{ $comment['id'] }}" aria-hidden="true">
-                            <div class="modal-dialog modal-dialog-centered">
-                                <div class="modal-content">
-                                    <div class="modal-header">
-                                        <h5 class="modal-title" id="deleteCommentModalLabel-{{ $comment['id'] }}">Konfirmasi Penghapusan Komentar</h5>
-                                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-                                    </div>
-                                    <div class="modal-body">
-                                        Apakah Anda yakin ingin menghapus komentar ini?
-                                    </div>
-                                    <div class="modal-footer">
-                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
-                                        <form action="{{ route('comments.destroy', $comment['id']) }}" method="POST" style="display:inline;">
-                                            @csrf
-                                            @method('DELETE')
-                                            <button type="submit" class="btn btn-danger">Ya, Hapus</button>
-                                        </form>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
                     @empty
                         <p class="text-center text-gray-500">Belum ada komentar untuk karya ini.</p>
                     @endforelse
@@ -364,7 +358,7 @@
 <div class="modal fade" id="reportModal" tabindex="-1" aria-labelledby="reportModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
-            <form action="{{ route('reports.store', $image['id']) }}" method="POST">
+            <form id="report-form" action="{{ route('reports.store', $image['id']) }}" method="POST">
                 @csrf
                 <div class="modal-header">
                     <h5 class="modal-title text-danger" id="reportModalLabel"><i class="fas fa-flag"></i> Laporkan Konten</h5>
@@ -402,32 +396,92 @@
 </div>
 @endauth
 
-{{-- 2. MODAL KONFIRMASI HAPUS KARYA --}}
-@if ($isOwner)
-<div class="modal fade" id="deleteImageModal" tabindex="-1" aria-labelledby="deleteImageModalLabel" aria-hidden="true">
+{{-- 2. MODAL KONFIRMASI HAPUS KUSTOM (Untuk Karya dan Komentar) --}}
+<div class="modal fade" id="deleteConfirmModal" tabindex="-1" aria-labelledby="deleteConfirmModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="deleteImageModalLabel">Konfirmasi Hapus Karya</h5>
+        <div class="modal-content bg-gray-800 text-white border-red-500 border-2">
+            <div class="modal-header border-b border-gray-700">
+                <h5 class="modal-title text-xl font-bold text-red-400" id="deleteConfirmModalLabel">Konfirmasi Penghapusan</h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
-                <p class="text-danger fw-bold">PERINGATAN:</p>
-                <p>Apakah Anda yakin ingin menghapus karya **{{ $image['title'] }}**? Tindakan ini tidak dapat dibatalkan.</p>
+                <p class="text-lg">Apakah Anda yakin ingin menghapus <span id="delete-target-type" class="font-bold"></span>?</p>
+                <p class="text-sm text-gray-400 mt-2">Tindakan ini tidak dapat dibatalkan.</p>
             </div>
-            <div class="modal-footer">
+            <div class="modal-footer border-t border-gray-700">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
-                <form action="{{ route('images.destroy', $image['id']) }}" method="POST" style="display:inline;">
-                    @csrf
-                    @method('DELETE')
-                    <button type="submit" class="btn btn-danger">Ya, Hapus Karya</button>
-                </form>
+                <button type="button" class="btn btn-danger" id="confirm-delete-btn">Ya, Hapus</button>
+                
+                {{-- Placeholder untuk form yang akan di-submit --}}
+                <input type="hidden" id="delete-form-id">
             </div>
         </div>
     </div>
 </div>
-@endif
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const deleteConfirmModalElement = document.getElementById('deleteConfirmModal');
+        const confirmDeleteBtn = document.getElementById('confirm-delete-btn');
+        let currentFormTargetId = null;
+        
+        // Fungsi untuk menghapus semua backdrop yang tersisa (Final Fix)
+        const removeAllBackdrops = () => {
+            document.querySelectorAll('.modal-backdrop').forEach(el => el.remove());
+            document.body.classList.remove('modal-open');
+            document.body.style.overflow = '';
+            document.body.style.paddingRight = '';
+        };
+
+        // 1. Setup Data saat modal dipicu
+        deleteConfirmModalElement.addEventListener('show.bs.modal', function (event) {
+            const button = event.relatedTarget;
+            currentFormTargetId = button.getAttribute('data-form-target');
+            const deleteType = button.getAttribute('data-delete-type');
+            const deleteName = button.getAttribute('data-delete-name');
+            
+            const modalTitle = deleteConfirmModalElement.querySelector('#deleteConfirmModalLabel');
+            const modalBodyType = deleteConfirmModalElement.querySelector('#delete-target-type');
+            
+            // Mengisi judul dan tipe penghapusan
+            if (deleteType === 'komentar') {
+                modalTitle.textContent = 'Konfirmasi Penghapusan Komentar';
+                modalBodyType.textContent = 'komentar ' + deleteName;
+            } else { // Jika hapus Karya
+                modalTitle.textContent = 'Konfirmasi Penghapusan Karya';
+                modalBodyType.textContent = 'karya ini';
+            }
+        });
+
+        // 2. Event saat tombol "Ya, Hapus" di dalam modal ditekan
+        confirmDeleteBtn.addEventListener('click', function () {
+            if (currentFormTargetId) {
+                const targetForm = document.querySelector(currentFormTargetId);
+                
+                // 1. Sembunyikan modal secara manual
+                const bsModal = bootstrap.Modal.getInstance(deleteConfirmModalElement);
+                if (bsModal) {
+                    bsModal.hide(); 
+                }
+
+                // 2. Hapus semua backdrop dan class modal-open secara paksa
+                removeAllBackdrops();
+
+                // 3. Submit form DELETE
+                if (targetForm) {
+                    targetForm.submit();
+                } else {
+                    console.error("Target form tidak ditemukan:", currentFormTargetId);
+                }
+            }
+        });
+
+        // FIX: Pastikan modal-open dihapus saat halaman dimuat ulang jika ada sisa
+        window.addEventListener('load', removeAllBackdrops);
+
+    });
+</script>
 </body>
 </html>

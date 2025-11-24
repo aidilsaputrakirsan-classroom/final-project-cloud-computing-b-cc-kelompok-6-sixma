@@ -7,7 +7,8 @@ use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\RegisteredUserController;
 use App\Http\Controllers\CommentController;
 use App\Http\Controllers\NotificationController;
-use App\Http\Controllers\ReportController; // Wajib: Import ReportController
+use App\Http\Controllers\ReportController;
+use App\Http\Controllers\LikeController; // KRITIS: Pastikan LikeController terimport
 
 /*
 |--------------------------------------------------------------------------
@@ -65,7 +66,11 @@ Route::middleware('auth')->group(function () {
 
     // RUTE PELAPORAN (REPORT)
     Route::post('images/{image}/report', [ReportController::class, 'store'])
-        ->name('reports.store'); // <-- Rute yang error tadi
+        ->name('reports.store'); 
+        
+    // RUTE LIKES 
+    Route::post('images/{image}/like', [LikeController::class, 'toggle'])
+        ->name('likes.toggle'); // <<< Rute target yang error 404
 });
 
 
