@@ -34,7 +34,10 @@ class AuthenticatedSessionController extends Controller
             $response = Http::timeout(20)->withHeaders([
                 'apikey' => env('SUPABASE_ANON_KEY'),
                 'Content-Type' => 'application/json',
-            ])->post($signInUrl, [
+            ])
+            // FIX KRITIS UNTUK CURL ERROR 60 (SSL CERTIFICATE PROBLEM)
+            ->withoutVerifying()
+            ->post($signInUrl, [
                 'email' => $request->email,
                 'password' => $request->password,
             ]);
@@ -49,7 +52,8 @@ class AuthenticatedSessionController extends Controller
                 ])->onlyInput('email');
             }
             
-            // Supabase Login BERHASIL
+            // ... (sisa logic penyimpanan JWT dan UUID) ...
+
             $supabaseData = $response->json();
             $supabaseJwt = $supabaseData['access_token'] ?? null;
             $supabaseUuid = $supabaseData['user']['id'] ?? null; 
@@ -59,36 +63,23 @@ class AuthenticatedSessionController extends Controller
                 return back()->withErrors(['error' => 'Data otentikasi dari Supabase tidak lengkap.']);
             }
             
-            // 2. Temukan User Lokal (CARI BERDASARKAN UUID SUPABASE)
-            // Di sini kita asumsikan ID lokal adalah UUID Supabase
             $user = User::where('id', $supabaseUuid)->first();
             
-            // Jika user tidak ditemukan, kemungkinan register gagal atau ada masalah sinkronisasi.
             if (!$user) {
-                // Sebagai fallback, kita buat user baru (jika aturan bisnis mengizinkan)
-                // ATAU KITA KEMBALIKAN ERROR jika harus diregister terpisah.
-                // Mengikuti logika Anda, kita kembalikan error dulu:
                 return back()->withErrors([
                     'email' => 'Akun tidak ditemukan di database lokal. Harap hubungi admin.',
                 ])->onlyInput('email');
             }
 
-            // =========================================================
-            // PERBAIKAN KRITIS: SIMPAN JWT & UUID ke Model User lokal
-            // =========================================================
-            
             $user->update([
                 'remember_token' => Str::random(60), 
-                'supabase_uuid' => $supabaseUuid, // <-- FIX: Menyimpan UUID
-                'supabase_jwt' => $supabaseJwt,   // <-- FIX: Menyimpan JWT
-                'name' => $userName,              // <-- Opsional: Memperbarui nama
+                'supabase_uuid' => $supabaseUuid, 
+                'supabase_jwt' => $supabaseJwt,   
+                'name' => $userName,             
             ]);
 
-            // Catatan: Cookie JWT tidak lagi diperlukan jika kita mengambil dari Model,
-            // tetapi jika Anda tetap ingin menggunakannya:
             Cookie::queue('supabase_jwt', $supabaseJwt, 60); 
             
-            // 3. Autentikasi Laravel
             Auth::login($user, $request->boolean('remember'));
             $request->session()->regenerate();
             
@@ -96,6 +87,10 @@ class AuthenticatedSessionController extends Controller
             
 
         } catch (ConnectException $e) {
+            // Memberikan pesan error yang lebih jelas tentang SSL
+            if (str_contains($e->getMessage(), 'SSL certificate problem')) {
+                return back()->withErrors(['error' => 'Gagal koneksi: Masalah Sertifikat SSL (cURL). Coba update CA bundle atau hubungi admin.']);
+            }
             return back()->withErrors(['error' => 'Gagal koneksi ke server Supabase. Cek jaringan atau .env.']);
 
         } catch (\Exception $e) {
@@ -106,7 +101,6 @@ class AuthenticatedSessionController extends Controller
 
     public function destroy(Request $request): RedirectResponse
     {
-        // Hapus JWT dari Cookie saat logout
         Cookie::queue(Cookie::forget('supabase_jwt')); 
         
         Auth::guard('web')->logout();

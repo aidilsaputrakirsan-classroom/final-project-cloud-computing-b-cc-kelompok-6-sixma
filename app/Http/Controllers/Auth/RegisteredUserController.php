@@ -4,95 +4,98 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
-use Illuminate\Http\Request;
-use Illuminate\Validation\Rules;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Auth\Events\Registered;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Http; 
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Validation\Rules;
+use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Log;
-
 
 class RegisteredUserController extends Controller
 {
-    /**
-     * Menampilkan form registrasi.
-     */
-    public function create()
+    public function create(): \Illuminate\View\View
     {
-        return view('auth.register'); 
+        return view('auth.register');
     }
 
-    /**
-     * Menangani permintaan registrasi pengguna baru.
-     */
-    public function store(Request $request)
+    public function store(Request $request): RedirectResponse
     {
-        // 1. Validasi Input Dasar
+        // VALIDASI TANPA CEK UNIQUE DI DATABASE LARAVEL
+        // karena akun dicek oleh Supabase Auth, bukan tabel local
         $request->validate([
             'name' => ['required', 'string', 'max:255'],
-            // Kita hapus 'unique:users' sementara karena ini sering konflik dengan ID yang bermasalah.
-            'email' => ['required', 'string', 'email', 'max:255'],
-            'password' => ['required', 'confirmed'], 
+            'email' => ['required', 'string', 'lowercase', 'email', 'max:255'],
+            'password' => ['required', 'confirmed', Rules\Password::defaults()],
         ]);
 
-        $supabaseAuthUrl = env('SUPABASE_URL') . '/auth/v1/signup';
+        $signUpUrl = env('SUPABASE_URL') . '/auth/v1/signup';
+        $signInUrl = env('SUPABASE_URL') . '/auth/v1/token?grant_type=password';
 
-        try {
-            // 2. Registrasi ke Supabase Auth
-            $supabaseResponse = Http::withHeaders([
-                'apikey' => env('SUPABASE_ANON_KEY'),
-                'Content-Type' => 'application/json',
-            ])->post($supabaseAuthUrl, [
-                'email' => $request->email,
-                'password' => $request->password,
-                'data' => [
-                    'name' => $request->name, 
-                ]
-            ]);
+        // DAFTAR KE SUPABASE AUTH
+        $responseSignUp = Http::withHeaders([
+            'apikey' => env('SUPABASE_ANON_KEY'),
+            'Content-Type' => 'application/json',
+        ])
+        ->withoutVerifying()
+        ->post($signUpUrl, [
+            'email' => $request->email,
+            'password' => $request->password,
+            'data' => ['name' => $request->name],
+        ]);
 
-            // Cek apakah registrasi Supabase berhasil
-            if (!$supabaseResponse->successful()) {
-                $errorBody = $supabaseResponse->json();
-                
-                Log::error('Supabase Register Gagal: ' . json_encode($errorBody) . ' - Status: ' . $supabaseResponse->status());
-                
-                if ($supabaseResponse->status() === 400) {
-                    return back()->withInput()->withErrors(['email' => 'Email ini sudah terdaftar di Supabase atau formatnya tidak valid.']);
-                }
+        $responseBody = $responseSignUp->json();
 
-                return back()->with('error', 'Registrasi Supabase gagal. Status: ' . $supabaseResponse->status() . ' - Detail: ' . ($errorBody['msg'] ?? 'Tidak ada pesan error.'));
+        // HANDLE EMAIL SUDAH TERDAFTAR
+        if (!$responseSignUp->successful()) {
+            if (isset($responseBody['error_code']) && $responseBody['error_code'] === 'user_already_exists') {
+                return back()->withErrors(['email' => 'Email sudah terdaftar di Supabase. Silakan login.']);
             }
 
-            $supabaseData = $supabaseResponse->json();
-
-            // Mendapatkan UUID pengguna dari respons Supabase
-            $userUUID = $supabaseData['user']['id'] ?? $supabaseData['id'] ?? null;
-            
-            if (empty($userUUID)) {
-                Log::error('Gagal mengambil UUID setelah register. Data respons: ' . json_encode($supabaseData));
-                return back()->with('error', 'Registrasi berhasil di Supabase, tapi gagal mengambil UUID.');
-            }
-
-            // 3. Simpan User ke Database LOKAL Laravel
-            // PERBAIKAN KRITIS: Memasukkan UUID ke kolom ID dan supabase_uuid
-            $user = User::create([
-                'id' => $userUUID, // FIX: Memaksa ID lokal diisi dengan UUID Supabase
-                'name' => $request->name,
-                'email' => $request->email,
-                'password' => Hash::make($request->password), 
-                'supabase_uuid' => $userUUID, // Menyimpan UUID ke kolom UUID
-            ]);
-
-            // 4. Otentikasi
-            event(new Registered($user));
-            Auth::login($user);
-            
-            return redirect('/'); 
-
-        } catch (\Exception $e) {
-            Log::error('Error pada proses register Laravel: ' . $e->getMessage() . ' di line ' . $e->getLine());
-            return back()->with('error', 'Terjadi kesalahan sistem saat registrasi: ' . $e->getMessage());
+            return back()->withErrors(['email' => $responseBody['msg'] ?? 'Registrasi di Supabase gagal.']);
         }
+
+        // LOGIN UNTUK AMBIL UUID & JWT
+        $responseSignIn = Http::withHeaders([
+            'apikey' => env('SUPABASE_ANON_KEY'),
+            'Content-Type' => 'application/json',
+        ])
+        ->withoutVerifying()
+        ->post($signInUrl, [
+            'email' => $request->email,
+            'password' => $request->password,
+        ]);
+
+        if (!$responseSignIn->successful()) {
+            return redirect()->route('login')->with('error', 'Registrasi berhasil, tetapi gagal login otomatis.');
+        }
+
+        $data = $responseSignIn->json();
+        $supabaseUuid = $data['user']['id'] ?? null;
+        $supabaseJwt = $data['access_token'] ?? null;
+
+        if (!$supabaseUuid || !$supabaseJwt) {
+            return back()->withErrors(['error' => 'UUID atau JWT Supabase tidak ditemukan.']);
+        }
+
+        // SIMPAN KE TABEL USERS LOKAL (Supabase DB)
+        $user = User::updateOrCreate(
+            ['email' => $request->email],
+            [
+                'id' => $supabaseUuid,
+                'name' => $request->name,
+                'password' => Hash::make($request->password),
+                'supabase_jwt' => $supabaseJwt,
+                'remember_token' => Str::random(60),
+            ]
+        );
+
+        event(new Registered($user));
+
+        Auth::login($user);
+
+        return redirect()->route('gallery.index')->with('success', 'Selamat datang! Akun berhasil dibuat.');
     }
 }

@@ -5,9 +5,9 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Log; 
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Cache; // <-- Import Cache
-use Carbon\Carbon;
+use Carbon\Carbon; 
 use Illuminate\Support\Facades\Cookie; 
 
 class ImageController extends Controller
@@ -59,45 +59,63 @@ class ImageController extends Controller
     // ----------------------------------------------------------
     // READ (Galeri/Explore - INDEX)
     // ----------------------------------------------------------
-    public function index()
-    {
-        $cacheKey = 'explore_images_list';
-        $supabase_storage_url = $this->getStorageUrl();
+   public function index(Request $request)
+{
+    $cacheKey = 'explore_images_list_' . md5(($request->search ?? '') . '_' . ($request->category ?? ''));
+    $supabase_storage_url = $this->getStorageUrl();
 
-        // 1. Coba ambil data dari cache selama 60 detik
-        $images = Cache::remember($cacheKey, 60, function () use ($supabase_storage_url) {
-            
-            $headers = $this->getSupabaseHeaders();
-            
-            // OPTIMASI QUERY: Hanya ambil kolom yang dibutuhkan
-            $url = env('SUPABASE_REST_URL') . '/images?select=id,title,image_path,created_at,categories(name),users:user_id(name)&order=created_at.desc';
+    // 🔥 FIX FILTER DAN SEARCH HANYA MENAMBAH 2 KONDISI TANPA UBAH LOGIKA LAIN
+    $search = $request->search ?? null;
+    $category = $request->category ?? null;
 
-            $response = Http::withHeaders($headers)->get($url);
-            
-            if (!$response->successful()) {
-                Log::error('Gagal mengambil data galeri dari Supabase: ' . $response->body());
-                return [];
-            }
-            
-            $images = $response->json() ?? [];
-            
-            // Buat image_url dan Category Name
-            $images = array_map(function($image) use ($supabase_storage_url) {
-                if (isset($image['image_path'])) {
-                    $image['image_url'] = $supabase_storage_url . $image['image_path'];
-                }
-                if (isset($image['categories']) && is_array($image['categories'])) {
-                     $image['category_name'] = $image['categories'][0]['name'] ?? null;
-                }
-                return $image;
-            }, $images);
-
-            return $images; // Simpan hasil ke cache
-        });
+    // 1. Coba ambil data dari cache selama 60 detik
+    $images = Cache::remember($cacheKey, 60, function () use ($supabase_storage_url, $search, $category) {
         
-        return view('images.index', compact('images')); 
-    }
-    
+        $headers = $this->getSupabaseHeaders();
+
+        // QUERY DASAR (SAMAAAA persis seperti kodenya Kirana)
+       $url = env('SUPABASE_REST_URL') . '/images?select=id,title,image_path,category_id,created_at,categories(name),users:user_id(name)&order=created_at.desc';
+
+
+        // 🔥 FIX #1 — SEARCH
+        if (!empty($search)) {
+            $encoded = urlencode('%' . $search . '%');
+            $url .= "&title=ilike.$encoded";
+        }
+
+        // 🔥 FIX #2 — FILTER CATEGORY
+        if (!empty($category)) {
+            $url .= "&category_id=eq.$category";
+        }
+
+        Log::info("QUERY FIXED:", [$url]);
+
+        $response = Http::withHeaders($headers)->get($url);
+
+        if (!$response->successful()) {
+            Log::error('Gagal mengambil data galeri dari Supabase: ' . $response->body());
+            return [];
+        }
+
+        $images = $response->json() ?? [];
+
+        // Buat image_url dan Category Name
+        $images = array_map(function($image) use ($supabase_storage_url) {
+            if (isset($image['image_path'])) {
+                $image['image_url'] = $supabase_storage_url . $image['image_path'];
+            }
+            if (isset($image['categories']) && is_array($image['categories'])) {
+                $image['category_name'] = $image['categories'][0]['name'] ?? null;
+            }
+            return $image;
+        }, $images);
+
+        return $images; // Simpan hasil ke cache
+    });
+
+    return view('images.index', compact('images'));
+}
+
     // ----------------------------------------------------------
     // READ (Detail Gambar - SHOW)
     // ----------------------------------------------------------
@@ -161,7 +179,7 @@ class ImageController extends Controller
         }
 
         $user = Auth::user();
-        $userUUID = $user->supabase_uuid ?? null;
+        $userUUID = $user->id;
         $userJWT = $this->getAuthJwt();
         
         if (empty($userUUID) || empty($userJWT)) { 
@@ -236,24 +254,106 @@ class ImageController extends Controller
     
     // ----------------------------------------------------------
     // UPDATE (PATCH Gambar) - DENGAN DEBUGGING LOG
-    // ----------------------------------------------------------
-    public function update(Request $request, $id)
-    {
-        // ... (Logika update) ...
+    // ------------------------------------------------------
+public function update(Request $request, $id)
+{
+    try {
+        $request->validate([
+            'title' => 'required|string|max:255',
+            'description' => 'nullable|string',
+            'category_id' => 'required|integer',
+            'image' => 'nullable|image|max:4096'
+        ]);
 
-        try {
-            // ... (Logika update) ...
-            
-            // Hapus cache setelah update
-            Cache::forget('explore_images_list');
-            Cache::forget('images_detail_' . $id); // Hapus cache detail spesifik
-            
-            return redirect()->route('profile.show')->with('success', 'Karya berhasil diperbarui!');
+        // Ambil header otentikasi Supabase
+        $headers = $this->getAuthHeaders();
 
-        } catch (\Exception $e) {
-            // ... (Error handling) ...
+        // Ambil image_path lama
+        $old = Http::withHeaders($this->getSupabaseHeaders())
+                ->get(env('SUPABASE_REST_URL') . "/images?id=eq.$id&select=image_path")
+                ->json()[0] ?? null;
+
+        $newImagePath = $old['image_path'] ?? null;
+
+        // Upload gambar baru jika ada
+        if ($request->hasFile('image')) {
+            $file = $request->file('image');
+            $mime = $file->getMimeType();
+            $newName = time() . '_' . Auth::id() . '_' . preg_replace('/[^A-Za-z0-9\.\-_]/', '_', $file->getClientOriginalName());
+
+            $upload = Http::withHeaders([
+                'apikey' => env('SUPABASE_ANON_KEY'),
+                'Authorization' => 'Bearer ' . $this->getAuthJwt(),
+                'Content-Type' => $mime
+            ])
+            ->withBody(file_get_contents($file), $mime)
+            ->post(env('SUPABASE_URL') . '/storage/v1/object/images/' . $newName);
+
+            if ($upload->successful()) {
+                $newImagePath = $newName;
+            }
         }
+
+        // 🔥 WAJIB: PATCH Supabase harus array list, bukan object
+        $payload = [
+            [
+                'title' => $request->title,
+                'description' => $request->description,
+                'category_id' => $request->category_id,
+                'image_path' => $newImagePath,
+                'updated_at' => now()->toIso8601String()
+            ]
+        ];
+
+        $update = Http::withHeaders(array_merge($headers, [
+            'Content-Type' => 'application/json'
+        ]))
+        ->patch(env('SUPABASE_REST_URL') . "/images?id=eq.$id", $payload);
+
+        if (!$update->successful()) {
+            \Log::error('Update gagal: ' . $update->body());
+            return back()->with('error', 'Update gagal: ' . ($update->json()['message'] ?? 'Unknown error'));
+        }
+
+        Cache::flush();
+
+        return redirect()->route('profile.show')
+            ->with('success', 'Berhasil diperbarui!');
+
+    } catch (\Exception $e) {
+        \Log::error('Update Error: ' . $e->getMessage());
+        return back()->with('error', 'Terjadi kesalahan saat update.');
     }
+}
+
+
+public function edit($id)
+{
+    return $this->showEditForm($id);
+}
+
+private function showEditForm($id)
+{
+    $headers = $this->getSupabaseHeaders();
+
+    // Ambil data gambar
+    $image = Http::withHeaders($headers)
+        ->get(env('SUPABASE_REST_URL') . "/images?id=eq.$id&select=*")
+        ->json()[0] ?? null;
+
+    if (!$image) {
+        return back()->with('error', 'Gambar tidak ditemukan.');
+    }
+
+    $image['image_url'] = $this->getStorageUrl() . $image['image_path'];
+
+    // Ambil kategori
+    $categories = Http::withHeaders($headers)
+        ->get(env('SUPABASE_REST_URL') . '/categories?select=id,name')
+        ->json() ?? [];
+
+    return view('images.edit', compact('image', 'categories'));
+}
 
     // ----------------------------------------------------------
     // DELETE (Hapus Gambar) - Dengan Pengecekan Status HTTP Ketat
@@ -275,4 +375,5 @@ class ImageController extends Controller
             // ... (Error handling) ...
         }
     }
+    
 }
