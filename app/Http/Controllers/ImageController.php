@@ -57,7 +57,7 @@ class ImageController extends Controller
     }
     
     // ----------------------------------------------------------
-    // READ (Galeri/Explore - INDEX)
+    // READ (Galeri/Explore - INDEX) - DENGAN LIKES
     // ----------------------------------------------------------
     public function index(Request $request)
     {
@@ -67,26 +67,33 @@ class ImageController extends Controller
         $cacheKey = 'explore_images_list_' . md5(($search ?? '') . '_' . ($category ?? ''));
         $supabase_storage_url = $this->getStorageUrl();
 
+        $userId = Auth::check() ? Auth::user()->supabase_uuid : null;
+
         // 1. Coba ambil data dari cache selama 60 detik
-        $images = Cache::remember($cacheKey, 60, function () use ($supabase_storage_url, $search, $category) {
+        $images = Cache::remember($cacheKey, 60, function () use ($supabase_storage_url, $search, $category, $userId) {
             
             $headers = $this->getSupabaseHeaders();
 
-            // QUERY DASAR (Mengambil semua join yang diperlukan untuk tampilan kartu)
-            $url = env('SUPABASE_REST_URL') . '/images?select=id,title,image_path,category_id,created_at,categories:category_id(name),users:user_id(name)&order=created_at.desc';
+            // Query untuk Index: Mengambil hitungan likes
+            $url = env('SUPABASE_REST_URL') . '/images?select=
+                id,
+                title,
+                image_path,
+                category_id,
+                created_at,
+                users:user_id(name),
+                categories:category_id(name),
+                likes_count:likes(count)
+                &order=created_at.desc';
 
-            // 🔥 FIX #1 — SEARCH
+            // FILTERING
             if (!empty($search)) {
                 $encoded = urlencode('%' . $search . '%');
                 $url .= "&or=(title.ilike.$encoded,description.ilike.$encoded)";
             }
-
-            // 🔥 FIX #2 — FILTER CATEGORY
             if (!empty($category)) {
                 $url .= "&category_id=eq.$category";
             }
-
-            Log::info("QUERY FIXED:", [$url]);
 
             $response = Http::withHeaders($headers)->get($url);
 
@@ -97,89 +104,135 @@ class ImageController extends Controller
 
             $images = $response->json() ?? [];
 
-            // Memperbaiki pemetaan untuk image_url
+            // Memperbaiki struktur data dan menambahkan image_url
             $images = array_map(function($image) use ($supabase_storage_url) {
                 if (isset($image['image_path'])) {
                     $image['image_url'] = $supabase_storage_url . $image['image_path'];
                 }
-                if (isset($image['categories']) && is_array($image['categories'])) {
-                    $image['category_name'] = $image['categories']['name'] ?? null;
-                }
-                $image['categories'] = ['name' => $image['categories']['name'] ?? null];
+                // Mengambil count dari likes_count array dan menormalkannya
+                $image['like_count'] = $image['likes_count'][0]['count'] ?? 0;
+                unset($image['likes_count']);
+
+                // Menyesuaikan struktur data kategori
+                $image['category_name'] = $image['categories']['name'] ?? null;
                 
                 return $image;
             }, $images);
 
             return $images; // Simpan hasil ke cache
         });
+        
+        // Cek status like pengguna (HARUS DILAKUKAN DI LUAR CACHE)
+        if ($userId && !empty($images)) {
+            $image_ids = array_column($images, 'id');
+            $ids_string = implode(',', $image_ids);
+            
+            // Mengambil semua ID gambar yang sudah di-like oleh user ini
+            $likeCheckUrl = env('SUPABASE_REST_URL') . "/likes?select=image_id&image_id=in.({$ids_string})&user_id=eq.{$userId}";
+            
+            $likeCheckHeaders = $this->getAuthHeaders();
+            $likeCheckResponse = Http::withHeaders($likeCheckHeaders)->get($likeCheckUrl);
+
+            $userLikes = [];
+            if ($likeCheckResponse->successful()) {
+                $userLikes = array_column($likeCheckResponse->json(), 'image_id');
+            } else {
+                Log::warning('⚠️ Gagal memeriksa status like pengguna: ' . $likeCheckResponse->body());
+            }
+
+            // Gabungkan status 'is_liked' ke array $images
+            $images = array_map(function($image) use ($userLikes) {
+                $image['is_liked'] = in_array($image['id'], $userLikes);
+                return $image;
+            }, $images);
+        }
 
         return view('images.index', compact('images'));
     }
-
+    
     // ----------------------------------------------------------
-    // READ (Detail Gambar - SHOW) - LOGIKA PALING STABIL
+    // READ (Detail - SHOW) - LIKES count + user like status
     // ----------------------------------------------------------
     public function show($id)
     {
         $cacheKey = 'images_detail_' . $id;
         $supabase_storage_url = $this->getStorageUrl();
-
+        $userId = Auth::check() ? Auth::user()->supabase_uuid : null;
+        
+        // FIX KRITIS: Ganti single complex query menjadi multi-step query untuk stabilitas
         $image = Cache::remember($cacheKey, 30, function () use ($id, $supabase_storage_url) {
-
-            $headers = $this->getSupabaseHeaders(); // Selalu gunakan Anon Key untuk READ Publik
-
-            // 1. Ambil data Gambar, Kategori, dan Owner (QUERY PALING SEDERHANA & STABIL)
-            $selectQueryImage = '*, categories:category_id(name), users:user_id(name)'; 
-            $urlImage = env('SUPABASE_REST_URL') . '/images?select=' . $selectQueryImage . '&id=eq.'.$id;
-
-            $responseImage = Http::withHeaders($headers)->get($urlImage);
+            $headers = $this->getSupabaseHeaders();
             
-            if (!$responseImage->successful()) {
-                Log::error('❌ Gagal Ambil Data Gambar (Anon Key). Status: ' . $responseImage->status());
-                throw new \Exception('Failed to fetch image detail. RLS Policy is too strict for basic query. Status: ' . $responseImage->status());
-            }
-            
-            $jsonImage = $responseImage->json();
-            if (empty($jsonImage) || !is_array($jsonImage)) {
-                 throw new \Exception('Image not found in Supabase.');
+            // --- STEP 1: Ambil data Gambar + Kategori + Pemilik (Query Sederhana) ---
+            $imageResponse = Http::withHeaders($headers)->get(
+                env('SUPABASE_REST_URL') . '/images?select=*,users:user_id(name, email),categories:category_id(name)&id=eq.'.$id
+            );
+
+            if (!$imageResponse->successful() || empty($imageResponse->json())) {
+                Log::error('❌ Gagal mengambil data dasar gambar: ' . $imageResponse->body());
+                return null;
             }
 
-            $image = $jsonImage[0]; 
-            $image['comments'] = []; // Inisialisasi komentar
+            $image = $imageResponse->json()[0];
             
-            // 2. Ambil data Komentar dan Owner Komentar (Request terpisah untuk stabilitas)
-            $commentsUrl = env('SUPABASE_REST_URL') . '/comments?select=id,content,created_at,user_id,users:user_id(name)&image_id=eq.'.$id;
-            $commentsResponse = Http::withHeaders($headers)->get($commentsUrl);
-            
-            if ($commentsResponse->successful() && !empty($commentsResponse->json())) {
-                 $image['comments'] = $commentsResponse->json();
-            } else {
-                 Log::warning('⚠️ Gagal mengambil komentar secara terpisah. Status: ' . $commentsResponse->status());
-            }
-
-            // Tambahkan image_url
             if (isset($image['image_path'])) {
                 $image['image_url'] = $supabase_storage_url . $image['image_path'];
             }
             
+            // --- STEP 2: Ambil data Komentar + Pemilik Komentar (Query Terpisah) ---
+            // Karena ini adalah array terpisah, kita perlu menggabungkannya ke $image
+            $commentsResponse = Http::withHeaders($headers)->get(
+                env('SUPABASE_REST_URL') . '/comments?select=id,content,created_at,user_id,users:user_id(name)&image_id=eq.'.$id.'&order=created_at.desc'
+            );
+            
+            $image['comments'] = [];
+            if ($commentsResponse->successful() && !empty($commentsResponse->json())) {
+                $image['comments'] = $commentsResponse->json();
+            } else {
+                Log::warning('⚠️ Gagal mengambil komentar (OK jika 404/Empty): ' . $commentsResponse->body());
+            }
+
+            // --- STEP 3: Ambil Jumlah Like (Query Terpisah) ---
+            $likesCountResponse = Http::withHeaders($headers)->get(
+                env('SUPABASE_REST_URL') . '/likes?image_id=eq.'.$id.'&select=count'
+            );
+            
+            $image['like_count'] = 0;
+            if ($likesCountResponse->successful() && !empty($likesCountResponse->json())) {
+                 $image['like_count'] = $likesCountResponse->json()[0]['count'] ?? 0;
+            }
+
             return $image;
         });
+
+        if (is_null($image)) {
+            abort(404);
+        }
         
-        if (!is_array($image) || empty($image)) {
-             return redirect()->route('gallery.index')->with('error', 'Gambar tidak ditemukan atau gagal dimuat.');
-        }
+        // --- STEP 4: Cek status like pengguna (Dilakukan di luar cache) ---
+        $image['is_liked'] = false; // Default
+        if ($userId) {
+            $likeCheckUrl = env('SUPABASE_REST_URL') . "/likes?select=id&image_id=eq.{$id}&user_id=eq.{$userId}";
+            $likeCheckHeaders = $this->getAuthHeaders(); 
+            $likeCheckResponse = Http::withHeaders($likeCheckHeaders)->get($likeCheckUrl);
 
-        // Urutkan komentar di sisi Laravel
-        if (isset($image['comments'])) {
-             usort($image['comments'], function ($a, $b) {
-                 return Carbon::parse($b['created_at'])->timestamp <=> Carbon::parse($a['created_at'])->timestamp;
-             });
+            if ($likeCheckResponse->successful() && count($likeCheckResponse->json()) > 0) {
+                $image['is_liked'] = true;
+            } else {
+                // Warning jika ada error RLS/token, tapi tidak memblokir halaman
+                Log::warning('⚠️ Gagal memeriksa status like detail pengguna: ' . $likeCheckResponse->body());
+            }
         }
-
+        
+        // Karena komen sudah diurutkan di query, tidak perlu usort.
+        // Cukup pastikan struktur kategori sudah benar untuk Blade
+        if (isset($image['categories']) && is_array($image['categories'])) {
+            $image['category_name'] = $image['categories']['name'] ?? 'N/A';
+        }
 
         return view('images.show', compact('image'));
     }
-
+    
     // ----------------------------------------------------------
     // CREATE (Form Upload)
     // ----------------------------------------------------------

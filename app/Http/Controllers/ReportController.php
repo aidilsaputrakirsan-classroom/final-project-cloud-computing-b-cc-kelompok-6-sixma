@@ -10,7 +10,7 @@ use Illuminate\Support\Facades\Log;
 class ReportController extends Controller
 {
     /**
-     * Mengambil JWT Pengguna untuk operasi CUD.
+     * Mengambil header otentikasi (JWT)
      */
     private function getAuthHeaders() {
         $userJWT = Auth::user()->supabase_jwt ?? null;
@@ -33,9 +33,8 @@ class ReportController extends Controller
 
     /**
      * Menyimpan laporan baru ke database Supabase.
-     * Rute: POST /images/{image}/report
      */
-    public function store(Request $request, $image) // $image adalah ID gambar yang dilaporkan
+    public function store(Request $request, $image) 
     {
         // 1. Cek Autentikasi
         if (!Auth::check()) {
@@ -51,8 +50,8 @@ class ReportController extends Controller
 
         // 2. Validasi Input
         $request->validate([
-            'reason' => 'required|string|max:100', // Alasan utama (dari form select)
-            'details' => 'nullable|string|max:500', // Detail tambahan
+            'reason' => 'required|string|max:100', 
+            'details' => 'nullable|string|max:500',
         ]);
 
         try {
@@ -65,7 +64,6 @@ class ReportController extends Controller
                 'reason' => $request->reason,
                 'details' => $request->details,
                 'created_at' => now()->toIso8601String(),
-                // 'status' => 'pending' (Asumsi Supabase punya default value)
             ];
             
             // 4. Proses POST Laporan
