@@ -5,16 +5,10 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Auth;
-<<<<<<< Updated upstream
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Cache; // <-- Import Cache
 use Carbon\Carbon; 
 use Illuminate\Support\Facades\Cookie; 
-=======
-use Illuminate\Support\Facades\Log; 
-use Illuminate\Support\Facades\Cache; // <-- Diperlukan untuk Cache Kategori
-use Carbon\Carbon;
->>>>>>> Stashed changes
 
 class ImageController extends Controller
 {
@@ -36,7 +30,6 @@ class ImageController extends Controller
         ];
     }
     
-<<<<<<< Updated upstream
     /**
      * Mengembalikan header dengan JWT Pengguna untuk operasi otentikasi (CUD)
      */
@@ -46,62 +39,6 @@ class ImageController extends Controller
         if (empty($userJWT)) {
             // Jika JWT kosong, kembalikan headers anonim, namun operasi CUD akan gagal
             return $this->getSupabaseHeaders(); 
-=======
-    // ----------------------------------------------------------
-    // INDEX / EXPLORE (Optimized for Concurrency & Caching)
-    // ----------------------------------------------------------
-    public function index(Request $request)
-    {
-        $supabaseHeaders = $this->getSupabaseHeaders();
-        $baseApiUrl = env('SUPABASE_REST_URL');
-        $images = [];
-        $categories = [];
-
-        try {
-            // A. CACHING untuk Kategori (Mempercepat load kategori)
-            $categories = Cache::remember('all_categories_supabase', 60 * 60, function () use ($supabaseHeaders, $baseApiUrl) {
-                $categoriesResponse = Http::withHeaders($supabaseHeaders)
-                    ->get($baseApiUrl . '/categories?select=id,name');
-                return $categoriesResponse->json() ?? [];
-            });
-            
-
-            // B. CONCURRENCY (Mengambil Gambar Secara Paralel)
-            $selectFields = 'id,title,image_path,category_id,user_id,created_at,description';
-            $queryUrl = $baseApiUrl . '/images?select=' . $selectFields;
-            
-            // Logika Pencarian dan Filter
-            if ($request->has('search') && !empty($request->search)) {
-                $search = $request->search;
-                $queryUrl .= '&or=(title.ilike.%25' . $search . '%25,description.ilike.%25' . $search . '%25)';
-            }
-            if ($request->has('category') && !empty($request->category)) {
-                $queryUrl .= '&category_id=eq.' . $request->category;
-            }
-
-            $queryUrl .= '&order=created_at.desc';
-
-            // Menggunakan Concurrency Pool (jika ada request lain bisa dimasukkan di sini)
-            [$imagesResponse] = Http::pool(fn (Illuminate\Http\Client\Pool $pool) => [
-                $pool->withHeaders($supabaseHeaders)->get($queryUrl),
-            ]);
-
-            if ($imagesResponse->successful()) {
-                $imagesData = $imagesResponse->json();
-                $baseStorageUrl = env('SUPABASE_URL') . '/storage/v1/object/public/images/';
-
-                foreach ($imagesData as $image) {
-                    $image['image_url'] = $baseStorageUrl . $image['image_path'];
-                    $images[] = $image;
-                }
-            }
-
-            return view('images.index', compact('images', 'categories'));
-
-        } catch (\Exception $e) {
-            Log::error('Explore Performance Error: ' . $e->getMessage());
-            return view('images.index', compact('images', 'categories'))->with('error', 'Gagal memuat galeri.');
->>>>>>> Stashed changes
         }
 
         return [
@@ -120,7 +57,6 @@ class ImageController extends Controller
     }
     
     // ----------------------------------------------------------
-<<<<<<< Updated upstream
     // READ (Galeri/Explore - INDEX)
     // ----------------------------------------------------------
    public function index(Request $request)
@@ -192,34 +128,6 @@ class ImageController extends Controller
         $image = Cache::remember($cacheKey, 30, function () use ($id, $supabase_storage_url) {
 
             $headers = $this->getSupabaseHeaders();
-=======
-    // SHOW / DETAIL GAMBAR (Optimized for Joining/Embedding)
-    // ----------------------------------------------------------
-    public function show($id)
-    {
-        $supabaseHeaders = $this->getSupabaseHeaders();
-        $baseApiUrl = env('SUPABASE_REST_URL');
-
-        try {
-            // 1. Ambil Data Gambar dan Embed Data User Uploader (Join User)
-            // Mengambil semua (*) data gambar dan data user Uploader (nama user)
-            $response = Http::withHeaders($supabaseHeaders)
-                // FIX: Menggunakan JOIN untuk mengambil detail user (uploader:user_id(name))
-                ->get($baseApiUrl . '/images?id=eq.' . $id . '&select=*,uploader:user_id(name)'); 
-
-            $data = $response->json();
-
-            if (empty($data)) abort(404);
-
-            $image = $data[0];
-            $image['image_url'] = env('SUPABASE_URL') . '/storage/v1/object/public/images/' . $image['image_path'];
-
-            // 2. Ambil Data Komentar TERKAIT dan Embed Data User Komentator
-            // Mengambil semua komentar untuk image_id ini, dan JOIN detail user yang berkomentar
-            $commentsResponse = Http::withHeaders($supabaseHeaders)
-                // FIX: Menggunakan JOIN untuk mengambil detail user komentator (user:user_id(name))
-                ->get($baseApiUrl . '/comments?image_id=eq.' . $id . '&select=*,user:user_id(name)&order=created_at.asc'); 
->>>>>>> Stashed changes
             
             // Perbaikan Query: Mengambil semua join yang diperlukan
             $url = env('SUPABASE_REST_URL') . '/images?select=*,categories(name),users:user_id(name),comments(*,users:user_id(name)).order=created_at.desc&id=eq.'.$id;
@@ -256,15 +164,7 @@ class ImageController extends Controller
     {
         $headers = $this->getSupabaseHeaders();
         $url = env('SUPABASE_REST_URL') . '/categories?select=id,name&order=name.asc';
-<<<<<<< Updated upstream
         $categories = Http::withHeaders($headers)->get($url)->json() ?? [];
-=======
-
-        // Menggunakan caching untuk kategori di sini juga
-        $categories = Cache::remember('all_categories_supabase', 60 * 60, function () use ($headers, $url) {
-            return Http::withHeaders($headers)->get($url)->json() ?? [];
-        });
->>>>>>> Stashed changes
 
         return view('images.create', compact('categories'));
     }
@@ -279,21 +179,12 @@ class ImageController extends Controller
         }
 
         $user = Auth::user();
-<<<<<<< Updated upstream
         $userUUID = $user->id;
         $userJWT = $this->getAuthJwt();
         
         if (empty($userUUID) || empty($userJWT)) { 
             Log::error('Upload Gagal: UUID atau JWT pengguna kosong.');
             return back()->with('error', 'Sesi otentikasi tidak lengkap. Harap logout dan login kembali.');
-=======
-        $userUUID = $user->supabase_uuid ?? null; 
-
-
-        if (empty($userUUID)) {
-            Log::error('Upload Gagal: UUID pengguna kosong.');
-            return back()->with('error', 'UUID pengguna tidak ditemukan. Pastikan Anda login dengan benar dan kolom UUID ada.');
->>>>>>> Stashed changes
         }
         
         $authHeaders = $this->getAuthHeaders();
@@ -362,53 +253,11 @@ class ImageController extends Controller
     }
     
     // ----------------------------------------------------------
-<<<<<<< Updated upstream
     // UPDATE (PATCH Gambar) - DENGAN DEBUGGING LOG
     // ------------------------------------------------------
 public function update(Request $request, $id)
 {
     try {
-=======
-    // EDIT
-    // ----------------------------------------------------------
-    public function edit($id)
-    {
-        $headers = $this->getSupabaseHeaders();
-
-        $requestUrl = env('SUPABASE_REST_URL') . '/images?id=eq.' . $id;
-
-        $data = Http::withHeaders($headers)->get($requestUrl)->json();
-
-        if (empty($data)) abort(404);
-
-        $image = $data[0];
-        $image['image_url'] = env('SUPABASE_URL') . '/storage/v1/object/public/images/' . $image['image_path'];
-
-        $cats = Cache::remember('all_categories_supabase', 60 * 60, function () use ($headers) {
-            return Http::withHeaders($headers)
-                ->get(env('SUPABASE_REST_URL') . '/categories?select=id,name')->json();
-        });
-
-        return view('images.edit', ['image' => $image, 'categories' => $cats]);
-    }
-
-    // ----------------------------------------------------------
-    // UPDATE GAMBAR
-    // ----------------------------------------------------------
-    public function update(Request $request, $id)
-    {
-        $headers = [
-            'apikey' => env('SUPABASE_ANON_KEY'),
-            'Authorization' => 'Bearer ' . env('SUPABASE_ANON_KEY'),
-            'Content-Type' => 'application/json'
-        ];
-
-        // Ambil UUID untuk penamaan file baru (jika ada)
-        $user = Auth::user();
-        $userId = $user->supabase_uuid ?? null; 
-
-
->>>>>>> Stashed changes
         $request->validate([
             'title' => 'required|string|max:255',
             'description' => 'nullable|string',
