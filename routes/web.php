@@ -5,9 +5,8 @@ use App\Http\Controllers\ImageController;
 use App\Http\Controllers\ProfileController; 
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\RegisteredUserController;
-use App\Http\Controllers\CommentController; // Menggunakan CommentController
+use App\Http\Controllers\CommentController;
 use App\Http\Controllers\NotificationController;
-
 
 /*
 |--------------------------------------------------------------------------
@@ -19,8 +18,19 @@ use App\Http\Controllers\NotificationController;
 // 1. HOMEPAGE (Landing Page Artrium)
 // ========================================================================
 Route::get('/', function () {
+    // Ubah ini kembali ke 'home' jika Anda punya file home.blade.php
+    // Atau biarkan jika ingin root langsung ke dashboard (tapi ini harusnya diproteksi login)
     return view('home'); 
 })->name('home');
+
+// --------------------------------------------------------
+// [MODIFIKASI] Rute Dashboard Admin (Bisa Diakses Tanpa Login)
+// --------------------------------------------------------
+Route::get('/admin/dashboard', function () {
+    return view('admin.dashboard'); 
+})->name('admin.dashboard'); 
+// --------------------------------------------------------
+
 
 // ========================================================================
 // 2. AUTHENTICATION (Login, Register & Logout)
@@ -55,7 +65,6 @@ Route::middleware('auth')->group(function () {
     Route::post('images', [ImageController::class, 'store'])->name('images.store');
 
     // EDIT & UPDATE GAMBAR
-    // Rute Edit, Update, dan Delete MENGGUNAKAN {id} agar konsisten dengan Controller
     Route::get('images/{id}/edit', [ImageController::class, 'edit'])->name('images.edit');
     Route::patch('images/{id}', [ImageController::class, 'update'])->name('images.update');
 
@@ -63,13 +72,14 @@ Route::middleware('auth')->group(function () {
     Route::delete('images/{id}', [ImageController::class, 'destroy'])->name('images.destroy');
     
     // RUTE KOMENTAR
-    // [C] STORE Komentar (Menggunakan {image} untuk ID gambar)
     Route::post('images/{image}/comments', [CommentController::class, 'store'])
         ->name('comments.store');
         
-    // [D] DELETE Komentar (Menggunakan {id} untuk ID komentar, jika itu yang digunakan di controller)
     Route::delete('comments/{id}', [CommentController::class, 'destroy'])
         ->name('comments.destroy');
+        
+    // Notif 
+    Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications');
 });
 
 
@@ -82,9 +92,3 @@ Route::get('/explore', [ImageController::class, 'index'])->name('gallery.index')
 
 // Detail gambar (Rute Dinamis)
 Route::get('images/{id}', [ImageController::class, 'show'])->name('images.show');
-
-// Notif 
-Route::middleware('auth')->get(
-    '/notifications',
-    [NotificationController::class, 'index']
-)->name('notifications');

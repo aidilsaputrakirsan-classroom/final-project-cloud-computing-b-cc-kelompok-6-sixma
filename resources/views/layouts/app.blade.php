@@ -92,7 +92,7 @@
                     
                     {{-- Navigasi Utama --}}
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ route('home') }}">Home</a>
+                        <a class="nav-link" href="{{ route('admin.dashboard') }}">Home</a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link" href="{{ route('gallery.index') }}">Explore</a>
