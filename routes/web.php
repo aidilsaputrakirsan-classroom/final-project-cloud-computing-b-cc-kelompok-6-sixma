@@ -5,9 +5,9 @@ use App\Http\Controllers\ImageController;
 use App\Http\Controllers\ProfileController; 
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\RegisteredUserController;
-use App\Http\Controllers\CommentController; // Menggunakan CommentController
+use App\Http\Controllers\CommentController;
 use App\Http\Controllers\NotificationController;
-
+use App\Http\Controllers\ReportController; // Wajib: Import ReportController
 
 /*
 |--------------------------------------------------------------------------
@@ -50,26 +50,22 @@ Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'showProfile'])->name('profile.show'); 
     
     // CRUD GAMBAR
-    // CREATE GAMBAR
     Route::get('images/create', [ImageController::class, 'create'])->name('images.create');
     Route::post('images', [ImageController::class, 'store'])->name('images.store');
 
-    // EDIT & UPDATE GAMBAR
-    // Rute Edit, Update, dan Delete MENGGUNAKAN {id} agar konsisten dengan Controller
     Route::get('images/{id}/edit', [ImageController::class, 'edit'])->name('images.edit');
     Route::patch('images/{id}', [ImageController::class, 'update'])->name('images.update');
-
-    // DELETE GAMBAR
     Route::delete('images/{id}', [ImageController::class, 'destroy'])->name('images.destroy');
     
     // RUTE KOMENTAR
-    // [C] STORE Komentar (Menggunakan {image} untuk ID gambar)
     Route::post('images/{image}/comments', [CommentController::class, 'store'])
         ->name('comments.store');
-        
-    // [D] DELETE Komentar (Menggunakan {id} untuk ID komentar, jika itu yang digunakan di controller)
     Route::delete('comments/{id}', [CommentController::class, 'destroy'])
         ->name('comments.destroy');
+
+    // RUTE PELAPORAN (REPORT)
+    Route::post('images/{image}/report', [ReportController::class, 'store'])
+        ->name('reports.store'); // <-- Rute yang error tadi
 });
 
 

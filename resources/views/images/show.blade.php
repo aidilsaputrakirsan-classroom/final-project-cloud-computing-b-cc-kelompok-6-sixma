@@ -7,6 +7,9 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
     
+    {{-- Tambahkan Font Awesome untuk Ikon Bendera/Report --}}
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    
     @php use Carbon\Carbon; @endphp
     
     <script src="https://cdn.tailwindcss.com"></script> 
@@ -124,6 +127,20 @@
             transition: all 0.3s ease;
         }
         
+        .btn-danger-outline { 
+            background: none;
+            border: 1px solid #dc3545;
+            color: #dc3545;
+            font-weight: 600;
+            border-radius: 12px;
+            padding: 10px 20px;
+            transition: all 0.3s ease;
+        }
+        .btn-danger-outline:hover {
+            background-color: #dc3545;
+            color: #fff;
+        }
+        
         .btn-danger { 
             background-color: #dc3545;
             border: none;
@@ -166,6 +183,25 @@
         .action-buttons-group form {
             margin-bottom: 0; 
         }
+        
+        /* Modal Styling for Dark Theme */
+        .modal-content {
+            background-color: rgba(20, 20, 20, 0.95);
+            color: #f8f9fa;
+            border: 1px solid rgba(246, 199, 77, 0.25);
+            border-radius: 15px;
+        }
+        .modal-header {
+            border-bottom: 1px solid rgba(246, 199, 77, 0.1);
+        }
+        .modal-footer {
+            border-top: 1px solid rgba(246, 199, 77, 0.1);
+        }
+        .form-control-dark {
+            background-color: rgba(40, 40, 40, 0.9);
+            color: #fff;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
 
     </style>
 </head>
@@ -185,7 +221,7 @@
                 @if(!empty($image['categories']['name']))
                     <span class="badge bg-warning text-dark me-2">🏷️ Kategori: {{ $image['categories']['name'] }}</span> 
                 @else
-                     <span class="badge bg-secondary text-light me-2">🏷️ Kategori: N/A</span> 
+                    <span class="badge bg-secondary text-light me-2">🏷️ Kategori: N/A</span> 
                 @endif
                 <span class="text-white date">
                     • 📅 Diunggah pada {{ Carbon::parse($image['created_at'] ?? now())->format('d M Y, H:i') }}
@@ -217,11 +253,17 @@
                         {{-- HANYA MUNCUL JIKA PEMILIK KARYA --}}
                         <a href="{{ route('images.edit', $image['id']) }}" class="btn btn-warning btn-sm">Edit Karya</a>
                         
-                        <form action="{{ route('images.destroy', $image['id']) }}" method="POST" onsubmit="return confirm('Apakah Anda yakin ingin menghapus karya ini?');">
-                            @csrf
-                            @method('DELETE')
-                            <button type="submit" class="btn btn-danger btn-sm">Hapus</button>
-                        </form>
+                        {{-- TOMBOL HAPUS KARYA (Menggunakan Modal Konfirmasi) --}}
+                        <button type="button" class="btn btn-danger btn-sm" data-bs-toggle="modal" data-bs-target="#deleteImageModal">
+                            Hapus
+                        </button>
+                    @else
+                        {{-- TOMBOL LAPORKAN KARYA (Hanya jika bukan pemilik dan sudah login) --}}
+                        @auth
+                            <button type="button" class="btn btn-danger-outline btn-sm" data-bs-toggle="modal" data-bs-target="#reportModal">
+                                🚩 Laporkan Karya
+                            </button>
+                        @endauth
                     @endif
 
                     {{-- TOMBOL KEMBALI OTOMATIS --}}
@@ -238,11 +280,9 @@
                 @if (session('success'))
                     <div class="alert alert-success">{{ session('success') }}</div>
                 @endif
-                {{-- FIX KRITIS: Mengamankan tampilan error agar tidak fatal --}}
                 @if (session('error'))
                     <div class="alert alert-danger">{{ session('error') }}</div>
                 @endif
-                {{-- Hapus blok error validasi Blade yang lama --}}
 
                 {{-- FORM KOMENTAR BARU --}}
                 @auth
@@ -273,17 +313,39 @@
                                 <p class="text-light mb-0">{{ $comment['content'] }}</p>
                             </div>
                             
-                            {{-- TOMBOL HAPUS KOMENTAR (DIPERCANTIK & DIPOSISI TENGAH) --}}
+                            {{-- TOMBOL HAPUS KOMENTAR (Menggunakan Modal Konfirmasi) --}}
                             @auth
                                 @if (Auth::user()->supabase_uuid === $comment['user_id'])
-                                    <form action="{{ route('comments.destroy', $comment['id']) }}" method="POST" onsubmit="return confirm('Hapus komentar ini?');">
-                                        @csrf
-                                        @method('DELETE')
-                                        <button type="submit" class="btn-delete-comment">Hapus</button>
-                                    </form>
+                                    <button type="button" class="btn-delete-comment" data-bs-toggle="modal" data-bs-target="#deleteCommentModal-{{ $comment['id'] }}">
+                                        Hapus
+                                    </button>
                                 @endif
                             @endauth
                         </div>
+
+                        {{-- MODAL KONFIRMASI HAPUS KOMENTAR --}}
+                        <div class="modal fade" id="deleteCommentModal-{{ $comment['id'] }}" tabindex="-1" aria-labelledby="deleteCommentModalLabel-{{ $comment['id'] }}" aria-hidden="true">
+                            <div class="modal-dialog modal-dialog-centered">
+                                <div class="modal-content">
+                                    <div class="modal-header">
+                                        <h5 class="modal-title" id="deleteCommentModalLabel-{{ $comment['id'] }}">Konfirmasi Penghapusan Komentar</h5>
+                                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                                    </div>
+                                    <div class="modal-body">
+                                        Apakah Anda yakin ingin menghapus komentar ini?
+                                    </div>
+                                    <div class="modal-footer">
+                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+                                        <form action="{{ route('comments.destroy', $comment['id']) }}" method="POST" style="display:inline;">
+                                            @csrf
+                                            @method('DELETE')
+                                            <button type="submit" class="btn btn-danger">Ya, Hapus</button>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
                     @empty
                         <p class="text-center text-gray-500">Belum ada komentar untuk karya ini.</p>
                     @endforelse
@@ -292,6 +354,79 @@
         </div>
     </div>
 </div>
+
+{{-- ========================================================== --}}
+{{-- MODAL GLOBAL --}}
+{{-- ========================================================== --}}
+
+{{-- 1. MODAL LAPORKAN KARYA (Report Modal) --}}
+@auth
+<div class="modal fade" id="reportModal" tabindex="-1" aria-labelledby="reportModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <form action="{{ route('reports.store', $image['id']) }}" method="POST">
+                @csrf
+                <div class="modal-header">
+                    <h5 class="modal-title text-danger" id="reportModalLabel"><i class="fas fa-flag"></i> Laporkan Konten</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="mb-3">Tolong berikan alasan mengapa Anda melaporkan karya **{{ $image['title'] }}**:</p>
+                    
+                    <div class="mb-3">
+                        <label for="reason" class="form-label">Alasan Utama <span class="text-danger">*</span></label>
+                        <select class="form-select form-control-dark" id="reason" name="reason" required>
+                            <option value="" disabled selected>Pilih salah satu alasan</option>
+                            <option value="Pornografi/Konten Seksual">Pornografi/Konten Seksual</option>
+                            <option value="Ujaran Kebencian/Diskriminasi">Ujaran Kebencian/Diskriminasi</option>
+                            <option value="Kekerasan atau Ancaman">Kekerasan atau Ancaman</option>
+                            <option value="Spam atau Penipuan">Spam atau Penipuan</option>
+                            <option value="Pelanggaran Hak Cipta">Pelanggaran Hak Cipta</option>
+                            <option value="Lainnya">Lainnya (Jelaskan di bawah)</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="details" class="form-label">Detail Tambahan (Opsional)</label>
+                        <textarea class="form-control form-control-dark" id="details" name="details" rows="3" maxlength="500" placeholder="Berikan detail lebih lanjut tentang pelanggaran."></textarea>
+                        <div class="form-text text-muted">Maksimal 500 karakter.</div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+                    <button type="submit" class="btn btn-danger"><i class="fas fa-paper-plane"></i> Kirim Laporan</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+@endauth
+
+{{-- 2. MODAL KONFIRMASI HAPUS KARYA --}}
+@if ($isOwner)
+<div class="modal fade" id="deleteImageModal" tabindex="-1" aria-labelledby="deleteImageModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="deleteImageModalLabel">Konfirmasi Hapus Karya</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-danger fw-bold">PERINGATAN:</p>
+                <p>Apakah Anda yakin ingin menghapus karya **{{ $image['title'] }}**? Tindakan ini tidak dapat dibatalkan.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+                <form action="{{ route('images.destroy', $image['id']) }}" method="POST" style="display:inline;">
+                    @csrf
+                    @method('DELETE')
+                    <button type="submit" class="btn btn-danger">Ya, Hapus Karya</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+@endif
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 </body>
