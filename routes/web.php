@@ -89,3 +89,16 @@ Route::middleware('auth')->get(
     '/notifications',
     [NotificationController::class, 'index']
 )->name('notifications');
+
+//LOG
+use Illuminate\Support\Facades\Http;
+
+Route::get('/activity-log', function () {
+    $logs = Http::withHeaders([
+        'apikey' => env('SUPABASE_SERVICE_ROLE_KEY'),
+        'Authorization' => 'Bearer ' . env('SUPABASE_SERVICE_ROLE_KEY'),
+    ])->get(env('SUPABASE_REST_URL') . '/activity_logs?select=*')
+      ->json();
+
+    return view('activity.index', compact('logs'));
+});

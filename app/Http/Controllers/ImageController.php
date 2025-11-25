@@ -246,189 +246,192 @@ class ImageController extends Controller
     }
 
     // ----------------------------------------------------------
-    // STORE (UPLOAD GAMBAR)
-    // ----------------------------------------------------------
-    public function store(Request $request)
-    {
-        if (!Auth::check()) {
-            return redirect()->route('login')->with('error', 'Silakan login.');
-        }
+// ----------------------------------------------------------
+// STORE (UPLOAD GAMBAR)
+// ----------------------------------------------------------
+public function store(Request $request)
+{
+    if (!Auth::check()) {
+        return redirect()->route('login')->with('error', 'Silakan login.');
+    }
 
-        $user = Auth::user();
-        $userUUID = $user->id;
-        $userJWT = $this->getAuthJwt();
-        
-        if (empty($userUUID) || empty($userJWT)) { 
-            Log::error('Upload Gagal: UUID atau JWT pengguna kosong.');
-            return back()->with('error', 'Sesi otentikasi tidak lengkap. Harap logout dan login kembali.');
-        }
-        
-        $authHeaders = $this->getAuthHeaders();
-        
-        $request->validate([
-            'image' => 'required|image|max:4096',
-            'title' => 'required|string|max:255',
-            'category_id' => 'required|integer|min:1', 
-            'description' => 'nullable|string'
-        ]);
-
-        try {
-            $file = $request->file('image');
-            $mime = $file->getMimeType();
-
-            $filename = time() . '_' . $userUUID . '_' . preg_replace(
-                '/[^A-Za-z0-9\.\-_]/', '_', $file->getClientOriginalName()
-            );
-
-            $uploadUrl = env('SUPABASE_URL') . '/storage/v1/object/images/' . $filename;
-
-            $storageHeaders = [
-                 'apikey' => env('SUPABASE_ANON_KEY'),
-                 'Authorization' => 'Bearer ' . $userJWT, 
-                 'Content-Type' => $mime
-            ];
-
-            $upload = Http::withHeaders($storageHeaders)
-                          ->withBody(file_get_contents($file), $mime)
-                          ->post($uploadUrl);
-
-            if (!$upload->successful()) {
-                Log::error('Supabase Storage Upload Gagal: ' . $upload->body());
-                return back()->with('error', 'Upload file gagal: ' . $upload->body());
-            }
-
-            $data = [
-                'title' => $request->title,
-                'description' => $request->description,
-                'image_path' => $filename,
-                'category_id' => (int) $request->category_id,
-                'user_id' => $userUUID,
-                'created_at' => now()->toIso8601String()
-            ];
-
-            $db = Http::withHeaders(array_merge($authHeaders, ['Prefer' => 'return=minimal']))
-                     ->post(env('SUPABASE_REST_URL') . '/images', $data);
-
-            if (!$db->successful()) {
-                Log::error('Supabase DB Insert Gagal: ' . $db->body() . ' Data yang dikirim: ' . json_encode($data));
-                return back()->with('error', 'DB gagal: ' . ($db->json()['message'] ?? 'Constraint Kategori tidak valid.'));
-            }
-            
-            // Hapus cache explore setelah insert
-            Cache::forget('explore_images_list');
-
-            return redirect()->route('gallery.index')->with('success', 'Gambar berhasil diupload!');
-
-        } catch (\Illuminate\Validation\ValidationException $e) {
-            return back()->withErrors($e->errors())->withInput();
-            
-        } catch (\Exception $e) {
-            Log::error('Error saat proses upload: ' . $e->getMessage());
-            return back()->with('error', 'Error: ' . $e->getMessage());
-        }
+    $user = Auth::user();
+    $userUUID = $user->id;
+    $userJWT = $this->getAuthJwt();
+    
+    if (empty($userUUID) || empty($userJWT)) { 
+        Log::error('Upload Gagal: UUID atau JWT pengguna kosong.');
+        return back()->with('error', 'Sesi otentikasi tidak lengkap. Harap logout dan login kembali.');
     }
     
-    // ----------------------------------------------------------
-    // UPDATE (PATCH Gambar)
-    // ------------------------------------------------------
-    public function update(Request $request, $id)
-    {
-        try {
-            $request->validate([
-                'title' => 'required|string|max:255',
-                'description' => 'nullable|string',
-                'category_id' => 'required|integer',
-                'image' => 'nullable|image|max:4096'
-            ]);
+    $authHeaders = $this->getAuthHeaders();
+    
+    $request->validate([
+        'image' => 'required|image|max:4096',
+        'title' => 'required|string|max:255',
+        'category_id' => 'required|integer|min:1', 
+        'description' => 'nullable|string'
+    ]);
 
-            $headers = $this->getAuthHeaders();
+    try {
+        $file = $request->file('image');
+        $mime = $file->getMimeType();
 
-            $old = Http::withHeaders($this->getSupabaseHeaders())
-                     ->get(env('SUPABASE_REST_URL') . "/images?id=eq.$id&select=image_path")
-                     ->json()[0] ?? null;
+        $filename = time() . '_' . $userUUID . '_' . preg_replace(
+            '/[^A-Za-z0-9\.\-_]/', '_', $file->getClientOriginalName()
+        );
 
-            $newImagePath = $old['image_path'] ?? null;
+        $uploadUrl = env('SUPABASE_URL') . '/storage/v1/object/images/' . $filename;
 
-            if ($request->hasFile('image')) {
-                $file = $request->file('image');
-                $mime = $file->getMimeType();
-                $newName = time() . '_' . Auth::id() . '_' . preg_replace('/[^A-Za-z0-9\.\-_]/', '_', $file->getClientOriginalName());
+        $storageHeaders = [
+            'apikey' => env('SUPABASE_ANON_KEY'),
+            'Authorization' => 'Bearer ' . $userJWT, 
+            'Content-Type' => $mime
+        ];
 
-                $upload = Http::withHeaders([
-                    'apikey' => env('SUPABASE_ANON_KEY'),
-                    'Authorization' => 'Bearer ' . $this->getAuthJwt(),
-                    'Content-Type' => $mime
-                ])
-                ->withBody(file_get_contents($file), $mime)
-                ->post(env('SUPABASE_URL') . '/storage/v1/object/images/' . $newName);
+        $upload = Http::withHeaders($storageHeaders)
+                      ->withBody(file_get_contents($file), $mime)
+                      ->post($uploadUrl);
 
-                if ($upload->successful()) {
-                    $newImagePath = $newName;
-                }
-            }
+        if (!$upload->successful()) {
+            Log::error('Supabase Storage Upload Gagal: ' . $upload->body());
+            return back()->with('error', 'Upload file gagal: ' . $upload->body());
+        }
 
-            $payload = [
+        $data = [
+            'title' => $request->title,
+            'description' => $request->description,
+            'image_path' => $filename,
+            'category_id' => (int) $request->category_id,
+            'user_id' => $userUUID,
+            'created_at' => now()->toIso8601String()
+        ];
+
+        $db = Http::withHeaders(array_merge($authHeaders, ['Prefer' => 'return=minimal']))
+                 ->post(env('SUPABASE_REST_URL') . '/images', $data);
+
+        if (!$db->successful()) {
+            Log::error('Supabase DB Insert Gagal: ' . $db->body() . ' Data yang dikirim: ' . json_encode($data));
+            return back()->with('error', 'DB gagal: ' . ($db->json()['message'] ?? 'Constraint Kategori tidak valid.'));
+        }
+
+        // 🔥 AMBIL ID GAMBAR YANG BARU DIINSERT (karena return=minimal)
+        $imageRow = Http::withHeaders($authHeaders)
+            ->get(env('SUPABASE_REST_URL') . "/images?image_path=eq.$filename&select=id,title")
+            ->json()[0] ?? null;
+
+        if ($imageRow) {
+            $imageId = $imageRow['id'];
+
+            // 🔥 LOG ACTIVITY CREATE (FORMAT BARU)
+            logActivity(
+                'create',
+                $imageId,
+                $request->title,
                 [
+                    'image_path' => $filename,
+                    'category_id' => $request->category_id,
+                ]
+            );
+        }
+
+        Cache::forget('explore_images_list');
+
+        return redirect()->route('gallery.index')->with('success', 'Gambar berhasil diupload!');
+
+    } catch (\Illuminate\Validation\ValidationException $e) {
+        return back()->withErrors($e->errors())->withInput();
+        
+    } catch (\Exception $e) {
+        Log::error('Error saat proses upload: ' . $e->getMessage());
+        return back()->with('error', 'Error: ' . $e->getMessage());
+    }
+}
+
+public function update(Request $request, $id)
+{
+    try {
+        $request->validate([
+            'title' => 'required|string|max:255',
+            'description' => 'nullable|string',
+            'category_id' => 'required|integer',
+            'image' => 'nullable|image|max:4096'
+        ]);
+
+        $headers = $this->getAuthHeaders();
+
+        $old = Http::withHeaders($this->getSupabaseHeaders())
+                 ->get(env('SUPABASE_REST_URL') . "/images?id=eq.$id&select=image_path,title,description,category_id")
+                 ->json()[0] ?? null;
+
+        $newImagePath = $old['image_path'] ?? null;
+
+        if ($request->hasFile('image')) {
+            $file = $request->file('image');
+            $mime = $file->getMimeType();
+            $newName = time() . '_' . Auth::id() . '_' . preg_replace('/[^A-Za-z0-9\.\-_]/', '_', $file->getClientOriginalName());
+
+            $upload = Http::withHeaders([
+                'apikey' => env('SUPABASE_ANON_KEY'),
+                'Authorization' => 'Bearer ' . $this->getAuthJwt(),
+                'Content-Type' => $mime
+            ])
+            ->withBody(file_get_contents($file), $mime)
+            ->post(env('SUPABASE_URL') . '/storage/v1/object/images/' . $newName);
+
+            if ($upload->successful()) {
+                $newImagePath = $newName;
+            }
+        }
+
+        $payload = [
+            [
+                'title' => $request->title,
+                'description' => $request->description,
+                'category_id' => $request->category_id,
+                'image_path' => $newImagePath,
+                'updated_at' => now()->toIso8601String()
+            ]
+        ];
+
+        $update = Http::withHeaders(array_merge($headers, [
+            'Content-Type' => 'application/json'
+        ]))
+        ->patch(env('SUPABASE_REST_URL') . "/images?id=eq.$id&user_id=eq.".Auth::user()->supabase_uuid, $payload);
+
+        if (!$update->successful()) {
+            \Log::error('Update gagal: ' . $update->body());
+            return back()->with('error', 'Update gagal: ' . ($update->json()['message'] ?? 'Unknown error'));
+        }
+
+        // 🔥 LOG ACTIVITY EDIT (FORMAT BARU)
+        logActivity(
+            'edit',
+            $id,
+            $request->title,
+            [
+                'old' => $old,
+                'new' => [
                     'title' => $request->title,
                     'description' => $request->description,
                     'category_id' => $request->category_id,
-                    'image_path' => $newImagePath,
-                    'updated_at' => now()->toIso8601String()
+                    'image_path' => $newImagePath
                 ]
-            ];
+            ]
+        );
 
-            $update = Http::withHeaders(array_merge($headers, [
-                'Content-Type' => 'application/json'
-            ]))
-            ->patch(env('SUPABASE_REST_URL') . "/images?id=eq.$id&user_id=eq.".Auth::user()->supabase_uuid, $payload);
+        Cache::forget('explore_images_list');
+        Cache::forget('images_detail_' . $id);
 
-            if (!$update->successful()) {
-                \Log::error('Update gagal: ' . $update->body());
-                return back()->with('error', 'Update gagal: ' . ($update->json()['message'] ?? 'Unknown error'));
-            }
+        return redirect()->route('profile.show')
+            ->with('success', 'Berhasil diperbarui!');
 
-            Cache::forget('explore_images_list');
-            Cache::forget('images_detail_' . $id);
-
-            return redirect()->route('profile.show')
-                ->with('success', 'Berhasil diperbarui!');
-
-        } catch (\Exception $e) {
-            \Log::error('Update Error: ' . $e->getMessage());
-            return back()->with('error', 'Terjadi kesalahan saat update.');
-        }
+    } catch (\Exception $e) {
+        \Log::error('Update Error: ' . $e->getMessage());
+        return back()->with('error', 'Terjadi kesalahan saat update.');
     }
+}
 
-
-    public function edit($id)
-    {
-        return $this->showEditForm($id);
-    }
-
-    private function showEditForm($id)
-    {
-        $headers = $this->getSupabaseHeaders();
-
-        $image = Http::withHeaders($headers)
-            ->get(env('SUPABASE_REST_URL') . "/images?id=eq.$id&select=*")
-            ->json()[0] ?? null;
-
-        if (!$image) {
-            return back()->with('error', 'Gambar tidak ditemukan.');
-        }
-        
-        if (!Auth::check() || Auth::user()->supabase_uuid !== $image['user_id']) {
-             return back()->with('error', 'Anda tidak memiliki izin untuk mengedit karya ini.');
-        }
-
-        $image['image_url'] = $this->getStorageUrl() . $image['image_path'];
-
-        $categories = Http::withHeaders($headers)
-            ->get(env('SUPABASE_REST_URL') . '/categories?select=id,name')
-            ->json() ?? [];
-
-        return view('images.edit', compact('image', 'categories'));
-    }
 
     // ----------------------------------------------------------
     // DELETE (Hapus Gambar)
