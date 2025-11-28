@@ -7,8 +7,7 @@ use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\RegisteredUserController;
 use App\Http\Controllers\CommentController;
 use App\Http\Controllers\NotificationController;
-use App\Http\Controllers\ReportController;
-use App\Http\Controllers\LikeController; // KRITIS: Pastikan LikeController terimport
+
 
 /*
 |--------------------------------------------------------------------------
@@ -20,8 +19,19 @@ use App\Http\Controllers\LikeController; // KRITIS: Pastikan LikeController teri
 // 1. HOMEPAGE (Landing Page Artrium)
 // ========================================================================
 Route::get('/', function () {
+    // Ubah ini kembali ke 'home' jika Anda punya file home.blade.php
+    // Atau biarkan jika ingin root langsung ke dashboard (tapi ini harusnya diproteksi login)
     return view('home'); 
 })->name('home');
+
+// --------------------------------------------------------
+// [MODIFIKASI] Rute Dashboard Admin (Bisa Diakses Tanpa Login)
+// --------------------------------------------------------
+Route::get('/admin/dashboard', function () {
+    return view('admin.dashboard'); 
+})->name('admin.dashboard'); 
+// --------------------------------------------------------
+
 
 // ========================================================================
 // 2. AUTHENTICATION (Login, Register & Logout)
@@ -54,6 +64,8 @@ Route::middleware('auth')->group(function () {
     Route::get('images/create', [ImageController::class, 'create'])->name('images.create');
     Route::post('images', [ImageController::class, 'store'])->name('images.store');
 
+    // EDIT & UPDATE GAMBAR
+    // Rute Edit, Update, dan Delete MENGGUNAKAN {id} agar konsisten dengan Controller
     Route::get('images/{id}/edit', [ImageController::class, 'edit'])->name('images.edit');
     Route::patch('images/{id}', [ImageController::class, 'update'])->name('images.update');
     Route::delete('images/{id}', [ImageController::class, 'destroy'])->name('images.destroy');
@@ -61,16 +73,10 @@ Route::middleware('auth')->group(function () {
     // RUTE KOMENTAR
     Route::post('images/{image}/comments', [CommentController::class, 'store'])
         ->name('comments.store');
+        
+    // [D] DELETE Komentar (Menggunakan {id} untuk ID komentar, jika itu yang digunakan di controller)
     Route::delete('comments/{id}', [CommentController::class, 'destroy'])
         ->name('comments.destroy');
-
-    // RUTE PELAPORAN (REPORT)
-    Route::post('images/{image}/report', [ReportController::class, 'store'])
-        ->name('reports.store'); 
-        
-    // RUTE LIKES 
-    Route::post('images/{image}/like', [LikeController::class, 'toggle'])
-        ->name('likes.toggle'); // <<< Rute target yang error 404
 });
 
 
@@ -83,9 +89,3 @@ Route::get('/explore', [ImageController::class, 'index'])->name('gallery.index')
 
 // Detail gambar (Rute Dinamis)
 Route::get('images/{id}', [ImageController::class, 'show'])->name('images.show');
-
-// Notif 
-Route::middleware('auth')->get(
-    '/notifications',
-    [NotificationController::class, 'index']
-)->name('notifications');
