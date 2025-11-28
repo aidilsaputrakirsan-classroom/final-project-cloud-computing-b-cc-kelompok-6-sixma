@@ -5,9 +5,9 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Log; 
-use Illuminate\Support\Facades\Cache; // <-- Import Cache
-use Carbon\Carbon;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Cache;
+use Carbon\Carbon; 
 use Illuminate\Support\Facades\Cookie; 
 
 class ImageController extends Controller
@@ -57,88 +57,182 @@ class ImageController extends Controller
     }
     
     // ----------------------------------------------------------
-    // READ (Galeri/Explore - INDEX)
+    // READ (Galeri/Explore - INDEX) - DENGAN LIKES
     // ----------------------------------------------------------
-    public function index()
+    public function index(Request $request)
     {
-        $cacheKey = 'explore_images_list';
+        $search = $request->search ?? null;
+        $category = $request->category ?? null;
+        
+        $cacheKey = 'explore_images_list_' . md5(($search ?? '') . '_' . ($category ?? ''));
         $supabase_storage_url = $this->getStorageUrl();
 
+        $userId = Auth::check() ? Auth::user()->supabase_uuid : null;
+
         // 1. Coba ambil data dari cache selama 60 detik
-        $images = Cache::remember($cacheKey, 60, function () use ($supabase_storage_url) {
+        $images = Cache::remember($cacheKey, 60, function () use ($supabase_storage_url, $search, $category, $userId) {
             
             $headers = $this->getSupabaseHeaders();
-            
-            // OPTIMASI QUERY: Hanya ambil kolom yang dibutuhkan
-            $url = env('SUPABASE_REST_URL') . '/images?select=id,title,image_path,created_at,categories(name),users:user_id(name)&order=created_at.desc';
+
+            // Query untuk Index: Mengambil hitungan likes
+            $url = env('SUPABASE_REST_URL') . '/images?select=
+                id,
+                title,
+                image_path,
+                category_id,
+                created_at,
+                users:user_id(name),
+                categories:category_id(name),
+                likes_count:likes(count)
+                &order=created_at.desc';
+
+            // FILTERING
+            if (!empty($search)) {
+                $encoded = urlencode('%' . $search . '%');
+                $url .= "&or=(title.ilike.$encoded,description.ilike.$encoded)";
+            }
+            if (!empty($category)) {
+                $url .= "&category_id=eq.$category";
+            }
 
             $response = Http::withHeaders($headers)->get($url);
-            
+
             if (!$response->successful()) {
                 Log::error('Gagal mengambil data galeri dari Supabase: ' . $response->body());
                 return [];
             }
-            
+
             $images = $response->json() ?? [];
-            
-            // Buat image_url dan Category Name
+
+            // Memperbaiki struktur data dan menambahkan image_url
             $images = array_map(function($image) use ($supabase_storage_url) {
                 if (isset($image['image_path'])) {
                     $image['image_url'] = $supabase_storage_url . $image['image_path'];
                 }
-                if (isset($image['categories']) && is_array($image['categories'])) {
-                     $image['category_name'] = $image['categories'][0]['name'] ?? null;
-                }
+                // Mengambil count dari likes_count array dan menormalkannya
+                $image['like_count'] = $image['likes_count'][0]['count'] ?? 0;
+                unset($image['likes_count']);
+
+                // Menyesuaikan struktur data kategori
+                $image['category_name'] = $image['categories']['name'] ?? null;
+                
                 return $image;
             }, $images);
 
             return $images; // Simpan hasil ke cache
         });
         
-        return view('images.index', compact('images')); 
+        // Cek status like pengguna (HARUS DILAKUKAN DI LUAR CACHE)
+        if ($userId && !empty($images)) {
+            $image_ids = array_column($images, 'id');
+            $ids_string = implode(',', $image_ids);
+            
+            // Mengambil semua ID gambar yang sudah di-like oleh user ini
+            $likeCheckUrl = env('SUPABASE_REST_URL') . "/likes?select=image_id&image_id=in.({$ids_string})&user_id=eq.{$userId}";
+            
+            $likeCheckHeaders = $this->getAuthHeaders();
+            $likeCheckResponse = Http::withHeaders($likeCheckHeaders)->get($likeCheckUrl);
+
+            $userLikes = [];
+            if ($likeCheckResponse->successful()) {
+                $userLikes = array_column($likeCheckResponse->json(), 'image_id');
+            } else {
+                Log::warning('⚠️ Gagal memeriksa status like pengguna: ' . $likeCheckResponse->body());
+            }
+
+            // Gabungkan status 'is_liked' ke array $images
+            $images = array_map(function($image) use ($userLikes) {
+                $image['is_liked'] = in_array($image['id'], $userLikes);
+                return $image;
+            }, $images);
+        }
+
+        return view('images.index', compact('images'));
     }
     
     // ----------------------------------------------------------
-    // READ (Detail Gambar - SHOW)
+    // READ (Detail - SHOW) - LIKES count + user like status
     // ----------------------------------------------------------
     public function show($id)
     {
-        $cacheKey = 'images_detail_' . $id; // Kunci cache spesifik per gambar
+        $cacheKey = 'images_detail_' . $id;
         $supabase_storage_url = $this->getStorageUrl();
-
-        // FIX KRITIS: Tambahkan Caching untuk halaman detail (30 detik)
+        $userId = Auth::check() ? Auth::user()->supabase_uuid : null;
+        
+        // FIX KRITIS: Ganti single complex query menjadi multi-step query untuk stabilitas
         $image = Cache::remember($cacheKey, 30, function () use ($id, $supabase_storage_url) {
-
             $headers = $this->getSupabaseHeaders();
             
-            // Perbaikan Query: Mengambil semua join yang diperlukan
-            $url = env('SUPABASE_REST_URL') . '/images?select=*,categories(name),users:user_id(name),comments(*,users:user_id(name)).order=created_at.desc&id=eq.'.$id;
+            // --- STEP 1: Ambil data Gambar + Kategori + Pemilik (Query Sederhana) ---
+            $imageResponse = Http::withHeaders($headers)->get(
+                env('SUPABASE_REST_URL') . '/images?select=*,users:user_id(name, email),categories:category_id(name)&id=eq.'.$id
+            );
 
-            $response = Http::withHeaders($headers)->get($url);
-
-            if (!$response->successful() || empty($response->json())) {
-                // Jika gagal, jangan simpan di cache, lempar exception
-                throw new \Exception('Failed to fetch image detail from Supabase.');
+            if (!$imageResponse->successful() || empty($imageResponse->json())) {
+                Log::error('❌ Gagal mengambil data dasar gambar: ' . $imageResponse->body());
+                return null;
             }
 
-            $image = $response->json()[0]; 
+            $image = $imageResponse->json()[0];
             
-            // Perbaikan: Tambahkan image_url
             if (isset($image['image_path'])) {
                 $image['image_url'] = $supabase_storage_url . $image['image_path'];
             }
             
-            return $image; // Simpan hasil ke cache
+            // --- STEP 2: Ambil data Komentar + Pemilik Komentar (Query Terpisah) ---
+            // Karena ini adalah array terpisah, kita perlu menggabungkannya ke $image
+            $commentsResponse = Http::withHeaders($headers)->get(
+                env('SUPABASE_REST_URL') . '/comments?select=id,content,created_at,user_id,users:user_id(name)&image_id=eq.'.$id.'&order=created_at.desc'
+            );
+            
+            $image['comments'] = [];
+            if ($commentsResponse->successful() && !empty($commentsResponse->json())) {
+                $image['comments'] = $commentsResponse->json();
+            } else {
+                Log::warning('⚠️ Gagal mengambil komentar (OK jika 404/Empty): ' . $commentsResponse->body());
+            }
+
+            // --- STEP 3: Ambil Jumlah Like (Query Terpisah) ---
+            $likesCountResponse = Http::withHeaders($headers)->get(
+                env('SUPABASE_REST_URL') . '/likes?image_id=eq.'.$id.'&select=count'
+            );
+            
+            $image['like_count'] = 0;
+            if ($likesCountResponse->successful() && !empty($likesCountResponse->json())) {
+                 $image['like_count'] = $likesCountResponse->json()[0]['count'] ?? 0;
+            }
+
+            return $image;
         });
+
+        if (is_null($image)) {
+            abort(404);
+        }
         
-        // Periksa jika cache/query gagal
-        if (!is_array($image) || empty($image)) {
-             return redirect()->route('gallery.index')->with('error', 'Gambar tidak ditemukan atau gagal dimuat.');
+        // --- STEP 4: Cek status like pengguna (Dilakukan di luar cache) ---
+        $image['is_liked'] = false; // Default
+        if ($userId) {
+            $likeCheckUrl = env('SUPABASE_REST_URL') . "/likes?select=id&image_id=eq.{$id}&user_id=eq.{$userId}";
+            $likeCheckHeaders = $this->getAuthHeaders(); 
+            $likeCheckResponse = Http::withHeaders($likeCheckHeaders)->get($likeCheckUrl);
+
+            if ($likeCheckResponse->successful() && count($likeCheckResponse->json()) > 0) {
+                $image['is_liked'] = true;
+            } else {
+                // Warning jika ada error RLS/token, tapi tidak memblokir halaman
+                Log::warning('⚠️ Gagal memeriksa status like detail pengguna: ' . $likeCheckResponse->body());
+            }
+        }
+        
+        // Karena komen sudah diurutkan di query, tidak perlu usort.
+        // Cukup pastikan struktur kategori sudah benar untuk Blade
+        if (isset($image['categories']) && is_array($image['categories'])) {
+            $image['category_name'] = $image['categories']['name'] ?? 'N/A';
         }
 
         return view('images.show', compact('image'));
     }
-
+    
     // ----------------------------------------------------------
     // CREATE (Form Upload)
     // ----------------------------------------------------------
@@ -161,7 +255,7 @@ class ImageController extends Controller
         }
 
         $user = Auth::user();
-        $userUUID = $user->supabase_uuid ?? null;
+        $userUUID = $user->id;
         $userJWT = $this->getAuthJwt();
         
         if (empty($userUUID) || empty($userJWT)) { 
@@ -195,8 +289,8 @@ class ImageController extends Controller
             ];
 
             $upload = Http::withHeaders($storageHeaders)
-                         ->withBody(file_get_contents($file), $mime)
-                         ->post($uploadUrl);
+                          ->withBody(file_get_contents($file), $mime)
+                          ->post($uploadUrl);
 
             if (!$upload->successful()) {
                 Log::error('Supabase Storage Upload Gagal: ' . $upload->body());
@@ -235,44 +329,138 @@ class ImageController extends Controller
     }
     
     // ----------------------------------------------------------
-    // UPDATE (PATCH Gambar) - DENGAN DEBUGGING LOG
-    // ----------------------------------------------------------
+    // UPDATE (PATCH Gambar)
+    // ------------------------------------------------------
     public function update(Request $request, $id)
     {
-        // ... (Logika update) ...
-
         try {
-            // ... (Logika update) ...
-            
-            // Hapus cache setelah update
+            $request->validate([
+                'title' => 'required|string|max:255',
+                'description' => 'nullable|string',
+                'category_id' => 'required|integer',
+                'image' => 'nullable|image|max:4096'
+            ]);
+
+            $headers = $this->getAuthHeaders();
+
+            $old = Http::withHeaders($this->getSupabaseHeaders())
+                     ->get(env('SUPABASE_REST_URL') . "/images?id=eq.$id&select=image_path")
+                     ->json()[0] ?? null;
+
+            $newImagePath = $old['image_path'] ?? null;
+
+            if ($request->hasFile('image')) {
+                $file = $request->file('image');
+                $mime = $file->getMimeType();
+                $newName = time() . '_' . Auth::id() . '_' . preg_replace('/[^A-Za-z0-9\.\-_]/', '_', $file->getClientOriginalName());
+
+                $upload = Http::withHeaders([
+                    'apikey' => env('SUPABASE_ANON_KEY'),
+                    'Authorization' => 'Bearer ' . $this->getAuthJwt(),
+                    'Content-Type' => $mime
+                ])
+                ->withBody(file_get_contents($file), $mime)
+                ->post(env('SUPABASE_URL') . '/storage/v1/object/images/' . $newName);
+
+                if ($upload->successful()) {
+                    $newImagePath = $newName;
+                }
+            }
+
+            $payload = [
+                [
+                    'title' => $request->title,
+                    'description' => $request->description,
+                    'category_id' => $request->category_id,
+                    'image_path' => $newImagePath,
+                    'updated_at' => now()->toIso8601String()
+                ]
+            ];
+
+            $update = Http::withHeaders(array_merge($headers, [
+                'Content-Type' => 'application/json'
+            ]))
+            ->patch(env('SUPABASE_REST_URL') . "/images?id=eq.$id&user_id=eq.".Auth::user()->supabase_uuid, $payload);
+
+            if (!$update->successful()) {
+                \Log::error('Update gagal: ' . $update->body());
+                return back()->with('error', 'Update gagal: ' . ($update->json()['message'] ?? 'Unknown error'));
+            }
+
             Cache::forget('explore_images_list');
-            Cache::forget('images_detail_' . $id); // Hapus cache detail spesifik
-            
-            return redirect()->route('profile.show')->with('success', 'Karya berhasil diperbarui!');
+            Cache::forget('images_detail_' . $id);
+
+            return redirect()->route('profile.show')
+                ->with('success', 'Berhasil diperbarui!');
 
         } catch (\Exception $e) {
-            // ... (Error handling) ...
+            \Log::error('Update Error: ' . $e->getMessage());
+            return back()->with('error', 'Terjadi kesalahan saat update.');
         }
     }
 
+
+    public function edit($id)
+    {
+        return $this->showEditForm($id);
+    }
+
+    private function showEditForm($id)
+    {
+        $headers = $this->getSupabaseHeaders();
+
+        $image = Http::withHeaders($headers)
+            ->get(env('SUPABASE_REST_URL') . "/images?id=eq.$id&select=*")
+            ->json()[0] ?? null;
+
+        if (!$image) {
+            return back()->with('error', 'Gambar tidak ditemukan.');
+        }
+        
+        if (!Auth::check() || Auth::user()->supabase_uuid !== $image['user_id']) {
+             return back()->with('error', 'Anda tidak memiliki izin untuk mengedit karya ini.');
+        }
+
+        $image['image_url'] = $this->getStorageUrl() . $image['image_path'];
+
+        $categories = Http::withHeaders($headers)
+            ->get(env('SUPABASE_REST_URL') . '/categories?select=id,name')
+            ->json() ?? [];
+
+        return view('images.edit', compact('image', 'categories'));
+    }
+
     // ----------------------------------------------------------
-    // DELETE (Hapus Gambar) - Dengan Pengecekan Status HTTP Ketat
+    // DELETE (Hapus Gambar)
     // ----------------------------------------------------------
     public function destroy($id)
     {
-        // ... (Logika delete) ...
+        if (!Auth::check()) {
+             return back()->with('error', 'Anda harus login untuk menghapus karya.');
+        }
 
         try {
-            // ... (Logika delete) ...
+            $userUUID = Auth::user()->supabase_uuid;
+            $headers = $this->getAuthHeaders();
 
-            // Hapus cache setelah delete
+            $deleteUrl = env('SUPABASE_REST_URL') . "/images?id=eq.$id&user_id=eq.$userUUID";
+            
+            $response = Http::withHeaders($headers)->delete($deleteUrl);
+            
+            if (!$response->successful()) {
+                Log::error('❌ DELETE_IMAGE_FAILURE:', ['status' => $response->status(), 'body' => $response->body()]);
+                return back()->with('error', 'Gagal menghapus karya. Karya mungkin tidak ditemukan atau bukan milik Anda.');
+            }
+
             Cache::forget('explore_images_list');
-            Cache::forget('images_detail_' . $id); // Hapus cache detail spesifik
+            Cache::forget('images_detail_' . $id);
 
             return redirect()->route('gallery.index')->with('success', 'Gambar berhasil dihapus!');
 
         } catch (\Exception $e) {
-            // ... (Error handling) ...
+            Log::error('Error saat proses delete: ' . $e->getMessage());
+            return back()->with('error', 'Terjadi kesalahan saat menghapus karya.');
         }
     }
+    
 }

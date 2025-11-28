@@ -101,7 +101,7 @@ class CommentController extends Controller
             
             // Komentar - Harus berhasil
             $commentResponse = Http::withHeaders(array_merge($authHeaders, ['Prefer' => 'return=representation']))
-                                  ->post($databaseUrl . '/comments', $commentData);
+                                 ->post($databaseUrl . '/comments', $commentData);
             
             // 5. Cek Hasil Komentar (KRITIS)
             if (!$commentResponse->successful()) {
@@ -116,18 +116,18 @@ class CommentController extends Controller
             // 6. POST Notifikasi (Serial Request, Opsional)
             if ($shouldNotify) {
                  $notificationResponse = Http::withHeaders($this->getSupabaseHeaders()) 
-                          ->post($databaseUrl . '/notifications', [
-                              'recipient_id' => $recipientId,
-                              'performer_id' => $performerId,
-                              'image_id' => $image,
-                              'type' => 'comment',
-                              'message' => 'Notifikasi akan dibuat oleh Service Class',
-                              'is_read' => false,
-                              'created_at' => now()->toIso8601String()
-                          ]);
-                          
+                             ->post($databaseUrl . '/notifications', [
+                                 'recipient_id' => $recipientId,
+                                 'performer_id' => $performerId,
+                                 'image_id' => $image,
+                                 'type' => 'comment',
+                                 'message' => 'Notifikasi akan dibuat oleh Service Class',
+                                 'is_read' => false,
+                                 'created_at' => now()->toIso8601String()
+                             ]);
+                             
                  if (!$notificationResponse->successful()) {
-                      Log::warning('❌ Notifikasi gagal disimpan di Supabase. Status: ' . $notificationResponse->status());
+                     Log::warning('❌ Notifikasi gagal disimpan di Supabase. Status: ' . $notificationResponse->status());
                  }
             }
             
@@ -149,6 +149,57 @@ class CommentController extends Controller
      */
     public function destroy($id)
     {
-        // ... (Logika destroy tetap sama) ...
+        if (!Auth::check()) {
+            return back()->with('error', 'Anda harus login untuk menghapus komentar.');
+        }
+
+        try {
+            $authHeaders = $this->getAuthHeaders();
+            $databaseUrl = env('SUPABASE_REST_URL');
+            
+            // 1. AMBIL ID GAMBAR DULU SEBELUM HAPUS
+            $headers = $this->getSupabaseHeaders(); 
+            $commentUrl = $databaseUrl . '/comments?select=image_id&id=eq.'.$id;
+            $commentResponse = Http::withHeaders($headers)->get($commentUrl);
+            
+            $imageId = null;
+            if ($commentResponse->successful() && !empty($commentResponse->json())) {
+                 $imageId = $commentResponse->json()[0]['image_id'] ?? null;
+            } else {
+                 Log::warning('⚠️ Gagal mengambil image_id untuk komentar: ' . $id);
+            }
+
+            // Kriteria DELETE Supabase: ID komentar = $id DAN user_id = user yang sedang login
+            $deleteUrl = $databaseUrl . '/comments?id=eq.'.$id.'&user_id=eq.'.Auth::user()->supabase_uuid;
+
+            // 2. Lakukan Request DELETE ke Supabase
+            $response = Http::withHeaders($authHeaders)->delete($deleteUrl);
+
+            // 3. Cek Hasil Response
+            if (!$response->successful()) {
+                 $errorBody = $response->body();
+                 Log::error('❌ COMMENT_DELETE_FAILURE:', ['status' => $response->status(), 'error_body' => $errorBody, 'comment_id' => $id]);
+                
+                 $message = $response->status() == 401 
+                    ? 'Akses ditolak (401). Policy RLS DELETE "comments" salah.' 
+                    : 'Gagal menghapus komentar. Komentar mungkin sudah tidak ada atau bukan milik Anda. (HTTP Status: ' . $response->status() . ')';
+                    
+                 return back()->with('error', $message);
+            }
+            
+            // 4. HAPUS CACHE DETAIL KARYA (SETELAH DELETE BERHASIL)
+            if ($imageId) {
+                Cache::forget('images_detail_' . $imageId);
+            } else {
+                Log::warning('⚠️ Gagal menghapus cache: image ID tidak ditemukan untuk komentar ' . $id);
+            }
+            
+            // 5. Redirect kembali ke halaman sebelumnya (atau halaman detail gambar)
+            return back()->with('success', 'Komentar berhasil dihapus!');
+
+        } catch (\Exception $e) {
+            Log::error('❌ EXCEPTION FATAL SAAT MENGHAPUS KOMENTAR:', ['message' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
+            return back()->with('error', 'Terjadi kesalahan internal saat menghapus komentar.');
+        }
     }
 }
