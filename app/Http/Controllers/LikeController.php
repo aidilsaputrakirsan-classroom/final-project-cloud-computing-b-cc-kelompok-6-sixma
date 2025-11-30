@@ -6,103 +6,170 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Cache; 
+use Illuminate\Support\Facades\Cache;
 
 class LikeController extends Controller
 {
-    /**
-     * Mengambil header otentikasi (JWT)
-     */
-    private function getAuthHeaders() {
-        $userJWT = Auth::user()->supabase_jwt ?? null;
+    /* ============================================================
+     |  HEADER JWT (WAJIB untuk INSERT / DELETE)
+     ============================================================ */
+    private function getAuthHeaders()
+    {
+        $jwt = Auth::user()->supabase_jwt ?? null;
 
-        if (empty($userJWT)) {
-            Log::error('JWT Pengguna Kosong saat operasi like.');
-            return ['apikey' => env('SUPABASE_ANON_KEY'), 'Authorization' => 'Bearer ' . env('SUPABASE_ANON_KEY'), 'Content-Type' => 'application/json'];
-        }
-
-        return ['apikey' => env('SUPABASE_ANON_KEY'), 'Authorization' => 'Bearer ' . $userJWT, 'Content-Type' => 'application/json'];
+        return [
+            'apikey'        => env('SUPABASE_ANON_KEY'),
+            'Authorization' => 'Bearer ' . $jwt,
+            'Content-Type'  => 'application/json',
+        ];
     }
 
-    /**
-     * Mengembalikan header standar (Anon Key)
-     */
-    private function getSupabaseHeaders() {
-        return ['apikey' => env('SUPABASE_ANON_KEY'), 'Authorization' => 'Bearer ' . env('SUPABASE_ANON_KEY')];
+    /* ============================================================
+     | HEADER PUBLIC (READ ONLY)
+     ============================================================ */
+    private function getPublicHeaders()
+    {
+        return [
+            'apikey'        => env('SUPABASE_ANON_KEY'),
+            'Authorization' => 'Bearer ' . env('SUPABASE_ANON_KEY'),
+        ];
     }
 
-
-    /**
-     * Mengaktifkan/menonaktifkan like pada sebuah gambar.
-     * Rute: POST /images/{image}/like
-     */
-    public function toggle($image)
+    /* ============================================================
+     |  LIKE / UNLIKE
+     |  POST /images/{image}/like
+     ============================================================ */
+    public function toggle($imageId)
     {
         if (!Auth::check()) {
             return response()->json(['error' => 'Anda harus login untuk menyukai karya.'], 401);
         }
-        
-        $userId = Auth::user()->supabase_uuid;
-        $databaseUrl = env('SUPABASE_REST_URL');
-        $authHeaders = $this->getAuthHeaders();
 
-        // 1. Cek apakah user sudah memberikan like sebelumnya (READ)
-        $checkUrl = $databaseUrl . "/likes?select=id&image_id=eq.{$image}&user_id=eq.{$userId}";
-        $checkResponse = Http::withHeaders($this->getSupabaseHeaders())->get($checkUrl);
-        
-        if (!$checkResponse->successful()) {
-            Log::error('❌ Gagal memeriksa status like: ' . $checkResponse->body());
-            return response()->json(['success' => false, 'error' => 'Gagal memeriksa status like.'], 500);
+        $user = Auth::user();
+        $userUUID = $user->supabase_uuid;
+        $jwt = $user->supabase_jwt;
+
+        if (!$jwt || !$userUUID) {
+            return response()->json(['error' => 'Sesi tidak valid. Silakan login ulang.'], 401);
         }
 
-        $existingLike = $checkResponse->json()[0] ?? null;
+        $dbUrl = env('SUPABASE_REST_URL');
 
-        if ($existingLike) {
-            // LAKUKAN DELETE (Unlike)
-            $likeId = $existingLike['id'];
-            $deleteUrl = $databaseUrl . "/likes?id=eq.{$likeId}&user_id=eq.{$userId}"; 
-            
-            $deleteResponse = Http::withHeaders($authHeaders)->delete($deleteUrl);
-            
-            if (!$deleteResponse->successful()) {
-                Log::error('❌ Gagal DELETE like: ' . $deleteResponse->body());
-                return response()->json(['success' => false, 'error' => 'Gagal menghapus like. Policy RLS DELETE "likes" mungkin salah.'], 403);
+        try {
+
+            /* ============================================================
+             | STEP 1 — CEK LIKE EXISTING
+             ============================================================ */
+            $checkUrl = $dbUrl . "/likes?select=id&image_id=eq.$imageId&user_id=eq.$userUUID";
+
+            $checkRes = Http::withHeaders($this->getPublicHeaders())
+                ->withoutVerifying()
+                ->get($checkUrl);
+
+            $existingLike = $checkRes->json()[0] ?? null;
+
+            /* ============================================================
+             | STEP 2 — UNLIKE (DELETE)
+             ============================================================ */
+            if ($existingLike) {
+
+                $deleteUrl = $dbUrl . "/likes?id=eq.{$existingLike['id']}&user_id=eq.$userUUID";
+
+                $deleteRes = Http::withHeaders($this->getAuthHeaders())
+                    ->withoutVerifying()
+                    ->delete($deleteUrl);
+
+                if (!$deleteRes->successful()) {
+                    Log::error("❌ DELETE LIKE FAILED:", ['body' => $deleteRes->body()]);
+                    return response()->json(['success' => false, 'error' => 'Gagal menghapus like.'], 403);
+                }
+
+                $action = 'unliked';
             }
-            $action = 'unliked';
-        } else {
-            // LAKUKAN INSERT (Like)
-            $likeData = [
-                'image_id' => $image,
-                'user_id' => $userId,
-                'created_at' => now()->toIso8601String(),
-            ];
-            
-            $insertResponse = Http::withHeaders($authHeaders)->post($databaseUrl . '/likes', $likeData);
-            
-            if (!$insertResponse->successful()) {
-                Log::error('❌ Gagal INSERT like: ' . $insertResponse->body());
-                return response()->json(['success' => false, 'error' => 'Gagal menambahkan like. Policy RLS INSERT "likes" mungkin salah.'], 403);
+
+            /* ============================================================
+             | STEP 3 — LIKE (INSERT)
+             ============================================================ */ else {
+
+                // Ambil pemilik gambar untuk notifikasi
+                $ownerQuery = $dbUrl . "/images?select=user_id&id=eq.$imageId";
+                $ownerRes = Http::withHeaders($this->getPublicHeaders())
+                    ->withoutVerifying()
+                    ->get($ownerQuery);
+
+                $recipientUUID = $ownerRes->json()[0]['user_id'] ?? null;
+
+                // Jangan kirim notifikasi ke diri sendiri
+                $shouldNotify = ($recipientUUID && $recipientUUID !== $userUUID);
+
+                // Insert like
+                $payload = [
+                    'image_id'   => $imageId,
+                    'user_id'    => $userUUID,
+                    'created_at' => now()->toIso8601String(),
+                ];
+
+                $insertRes = Http::withHeaders($this->getAuthHeaders())
+                    ->withoutVerifying()
+                    ->post($dbUrl . "/likes", $payload);
+
+                if (!$insertRes->successful()) {
+                    Log::error("❌ INSERT LIKE FAILED:", ['body' => $insertRes->body()]);
+                    return response()->json(['success' => false, 'error' => 'Gagal menambahkan like.'], 403);
+                }
+
+                $action = 'liked';
+
+                /* ============================================================
+                 | STEP 4 — INSERT NOTIFIKASI (JIKA BUKAN KARYA SENDIRI)
+                 ============================================================ */
+                if ($shouldNotify) {
+
+                    $notifPayload = [
+                        'recipient_id' => $recipientUUID,
+                        'performer_id' => $userUUID,
+                        'image_id'     => $imageId,
+                        'type'         => 'like',
+                        'message'      => $user->name . ' menyukai fotomu.',
+                        'is_read'      => false,
+                        'created_at'   => now()->toIso8601String(),
+                    ];
+
+                    $notifRes = Http::withHeaders($this->getAuthHeaders())
+                        ->withoutVerifying()
+                        ->post($dbUrl . "/notifications", $notifPayload);
+
+                    if (!$notifRes->successful()) {
+                        Log::warning("⚠️ NOTIF LIKE GAGAL:", ['body' => $notifRes->body()]);
+                    }
+                }
             }
-            $action = 'liked';
-        }
-        
-        // KRITIS: Hapus cache di sini agar count likes ter-update di Index/Show
-        Cache::forget('explore_images_list');
-        Cache::forget('images_detail_' . $image); 
 
-        // 2. Ambil hitungan like yang baru (Supabase Count Aggregate)
-        $countUrl = $databaseUrl . "/likes?image_id=eq.{$image}&select=count";
-        $countResponse = Http::withHeaders($this->getSupabaseHeaders())->get($countUrl);
-        
-        $newCount = 0;
-        if ($countResponse->successful() && !empty($countResponse->json())) {
-             $newCount = $countResponse->json()[0]['count'] ?? 0;
-        }
+            /* ============================================================
+             | STEP 5 — HAPUS CACHE
+             ============================================================ */
+            Cache::forget("explore_images_list");
+            Cache::forget("images_detail_$imageId");
 
-        return response()->json([
-            'success' => true,
-            'action' => $action,
-            'like_count' => $newCount
-        ]);
+            /* ============================================================
+             | STEP 6 — AMBIL LIKE COUNT BARU
+             ============================================================ */
+            $countUrl = $dbUrl . "/likes?image_id=eq.$imageId&select=count";
+
+            $countRes = Http::withHeaders($this->getPublicHeaders())
+                ->withoutVerifying()
+                ->get($countUrl);
+
+            $likeCount = $countRes->json()[0]['count'] ?? 0;
+
+            return response()->json([
+                'success'    => true,
+                'action'     => $action,
+                'like_count' => $likeCount,
+            ]);
+        } catch (\Exception $e) {
+            Log::error("💥 EXCEPTION LIKE:", ['message' => $e->getMessage()]);
+            return response()->json(['error' => 'Kesalahan internal server.'], 500);
+        }
     }
 }

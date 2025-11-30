@@ -9,76 +9,76 @@ use Illuminate\Support\Facades\Log;
 class NotificationController extends Controller
 {
     /**
-     * Menampilkan daftar notifikasi untuk pengguna login.
+     * Menampilkan semua notifikasi milik user login.
      */
     public function index()
     {
-        if (!Auth::check()) {
-            return redirect()->route('login');
-        }
+        if (!Auth::check()) return redirect()->route('login');
 
         $user = Auth::user();
         $userUUID = $user->supabase_uuid;
-        $userJWT  = $user->supabase_jwt;
+        $jwt = $user->supabase_jwt;
 
-        if (!$userUUID || !$userJWT) {
-            Log::warning("⚠️ Supabase UUID/JWT kosong untuk user lokal ID {$user->id}");
-            return back()->with('error', 'Sesi tidak valid. Silakan login ulang.');
+        if (!$jwt) {
+            return back()->with('error', 'JWT expired. Silakan login ulang.');
         }
 
-        // Header autentikasi Supabase (WAJIB JWT user untuk RLS)
         $headers = [
             'apikey'        => env('SUPABASE_ANON_KEY'),
-            'Authorization' => "Bearer {$userJWT}",
-            'Content-Type'  => 'application/json',
+            'Authorization' => "Bearer {$jwt}",
         ];
 
-        /*
-        |--------------------------------------------------------------------------
-        | Ambil Semua Notifikasi User
-        | Termasuk relasi performer (yang memberi like/comment)
-        | Termasuk relasi image (gambar terkait notifikasi)
-        |--------------------------------------------------------------------------
-        */
+        // ambil notifikasi TANPA JOIN performer
         $url = env('SUPABASE_REST_URL') .
-            "/notifications" .
-            "?select=id,recipient_id,performer_id,type,message,image_id,is_read,created_at," .
-            "performer:performer_id(name)," .
-            "image:image_id(title,image_path)" .
-            "&recipient_id=eq.$userUUID" .
-            "&order=created_at.desc";
+            "/notifications?recipient_id=eq.$userUUID&order=created_at.desc";
 
-        try {
-            $response = Http::withHeaders($headers)
-                ->withoutVerifying()          // penting untuk Windows SSL issue
-                ->get($url);
+        $res = Http::withHeaders($headers)->withoutVerifying()->get($url);
 
-            if (!$response->successful()) {
-                Log::error("❌ Gagal mengambil notifikasi: " . $response->body());
-                $notifications = [];
-            } else {
-                $notifications = $response->json() ?? [];
-            }
-
-            // FIX: Tambahkan URL Storage untuk image notifikasi
-            $storageUrl = rtrim(env('SUPABASE_URL'), '/') . '/storage/v1/object/public/images/';
-
-            foreach ($notifications as &$notif) {
-                if (isset($notif['image']['image_path'])) {
-                    $notif['image']['image_url'] =
-                        $storageUrl . $notif['image']['image_path'];
-                }
-            }
-
-            return view('notifications.index', compact('notifications'));
-        } catch (\Exception $e) {
-            Log::error("💥 Error notifikasi: " . $e->getMessage());
-            return back()->with('error', 'Gagal memuat notifikasi.');
+        if (!$res->successful()) {
+            Log::error('Notif error: ' . $res->body());
+            $notifications = [];
+        } else {
+            $notifications = $res->json();
         }
+
+        // get image public URL
+        $storageUrl = rtrim(env('SUPABASE_URL'), '/') . "/storage/v1/object/public/images/";
+
+        foreach ($notifications as &$n) {
+            if (isset($n['image_id'])) {
+                // ambil info gambar
+                $imgUrl = env('SUPABASE_REST_URL') . "/images?id=eq.{$n['image_id']}&select=title,image_path";
+                $imgRes = Http::withHeaders($headers)->withoutVerifying()->get($imgUrl);
+
+                $img = $imgRes->json()[0] ?? null;
+
+                $n['image'] = $img ? [
+                    'title'      => $img['title'],
+                    'image_url'  => $storageUrl . $img['image_path'],
+                ] : null;
+            }
+
+            // ambil nama performer dari auth.users
+            if (isset($n['performer_id'])) {
+                $usrUrl = env('SUPABASE_REST_URL') . "/users?id=eq.{$n['performer_id']}&select=email";
+                $usrRes = Http::withHeaders($headers)->withoutVerifying()->get($usrUrl);
+
+                $usr = $usrRes->json()[0] ?? null;
+
+                $n['performer'] = [
+                    'name' => $usr['email'] ?? 'Pengguna'
+                ];
+            }
+        }
+
+        return view('notifications.index', compact('notifications'));
     }
 
+
+
+
     /**
-     * Tandai semua notifikasi sebagai telah dibaca.
+     * Tandai semua notifikasi user sebagai "read".
      */
     public function markAllRead()
     {
@@ -90,10 +90,14 @@ class NotificationController extends Controller
         $userUUID = $user->supabase_uuid;
         $userJWT  = $user->supabase_jwt;
 
+        if (!$userJWT) {
+            return back()->with('error', 'Sesi login tidak valid. Silakan login ulang.');
+        }
+
         $headers = [
             'apikey'        => env('SUPABASE_ANON_KEY'),
             'Authorization' => "Bearer {$userJWT}",
-            'Content-Type'  => 'application/json',
+            'Content-Type'  => 'application/json'
         ];
 
         try {
@@ -105,12 +109,13 @@ class NotificationController extends Controller
 
             if (!$response->successful()) {
                 Log::error("❌ Gagal update read notifikasi: " . $response->body());
+                return back()->with('error', 'Gagal menandai sebagai dibaca.');
             }
 
             return back()->with('success', 'Semua notifikasi ditandai telah dibaca.');
         } catch (\Exception $e) {
             Log::error("💥 Error read notif: " . $e->getMessage());
-            return back()->with('error', 'Gagal memperbarui status notifikasi.');
+            return back()->with('error', 'Kesalahan saat memproses.');
         }
     }
 }

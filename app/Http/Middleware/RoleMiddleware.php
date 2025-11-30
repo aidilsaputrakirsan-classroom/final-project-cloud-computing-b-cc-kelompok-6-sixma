@@ -4,26 +4,26 @@ namespace App\Http\Middleware;
 
 use Closure;
 use Illuminate\Support\Facades\Auth;
-use App\Models\Role; // penting!
 
 class RoleMiddleware
 {
     public function handle($request, Closure $next, $roleName)
     {
+        // Belum login
         if (!Auth::check()) {
-            return redirect('/login');
+            return redirect()->route('login');
         }
 
         $user = Auth::user();
 
-        // Jika user tidak punya relasi role
+        // Tidak ada role
         if (!$user->role) {
-            return redirect('/')->withErrors(['error' => 'Role user tidak ditemukan.']);
+            abort(403, 'Role pengguna tidak ditemukan.');
         }
 
-        // Apakah nama role cocok?
+        // Cek nama role
         if ($user->role->name !== $roleName) {
-            return redirect('/')->withErrors(['error' => 'Akses ditolak.']);
+            abort(403, 'Anda tidak memiliki izin untuk mengakses halaman ini.');
         }
 
         return $next($request);

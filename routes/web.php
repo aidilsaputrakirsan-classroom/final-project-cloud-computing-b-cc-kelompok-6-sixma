@@ -1,13 +1,14 @@
 <?php
 
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\ImageController;
-use App\Http\Controllers\ProfileController;
-use App\Http\Controllers\Auth\AuthenticatedSessionController;
-use App\Http\Controllers\Auth\RegisteredUserController;
-use App\Http\Controllers\CommentController;
-use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\ReportController;
+use App\Http\Controllers\CommentController;
+use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\Auth\RegisteredUserController;
+use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\LikeController; // KRITIS: Pastikan LikeController terimport
 
 /*
@@ -70,6 +71,17 @@ Route::middleware(['auth', 'role:user'])->group(function () {
     // RUTE LIKES 
     Route::post('images/{image}/like', [LikeController::class, 'toggle'])
         ->name('likes.toggle'); // <<< Rute target yang error 404
+
+    Route::get(
+        '/notifications',
+        [NotificationController::class, 'index']
+    )->name('notifications');
+    Route::post('/notifications/read', [NotificationController::class, 'markAllRead'])
+        ->name('notifications.read');
+
+    Route::get('/debug-role', function () {
+        return Auth::user()->role;
+    });
 });
 
 // ========================================================================
@@ -116,10 +128,3 @@ Route::get('/explore', [ImageController::class, 'index'])->name('gallery.index')
 Route::get('images/{id}', [ImageController::class, 'show'])->name('images.show');
 
 // Notif 
-Route::middleware('auth')->get(
-    '/notifications',
-    [NotificationController::class, 'index']
-)->name('notifications');
-Route::middleware('auth')
-    ->post('/notifications/read', [NotificationController::class, 'markAllRead'])
-    ->name('notifications.read');

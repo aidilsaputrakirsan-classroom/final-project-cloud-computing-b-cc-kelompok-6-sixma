@@ -6,147 +6,152 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Cache; 
-use App\Services\NotificationService; 
+use Illuminate\Support\Facades\Cache;
 
 class CommentController extends Controller
 {
-    /**
-     * Mengambil JWT yang tersimpan di Model pengguna yang sedang login.
-     */
-    private function getAuthJwt() {
+    /* ============================================================
+     |  HELPER: GET JWT USER
+     ============================================================ */
+    private function getAuthJwt()
+    {
         return Auth::user()->supabase_jwt ?? null;
     }
 
-    /**
-     * Mengembalikan header dengan JWT Pengguna untuk operasi otentikasi (CUD).
-     */
-    private function getAuthHeaders() {
-        $userJWT = $this->getAuthJwt();
-
-        if (empty($userJWT)) {
-            Log::error('JWT Pengguna Kosong saat operasi komentar.');
-            return [
-                'apikey' => env('SUPABASE_ANON_KEY'),
-                'Authorization' => 'Bearer ' . env('SUPABASE_ANON_KEY'),
-                'Content-Type' => 'application/json'
-            ];
-        }
-
-        return [
-            'apikey' => env('SUPABASE_ANON_KEY'),
-            'Authorization' => 'Bearer ' . $userJWT, 
-            'Content-Type' => 'application/json'
-        ];
-    }
-    
-    /**
-     * Mengembalikan header standar untuk request Supabase REST API (Anon Key).
-     */
-    private function getSupabaseHeaders() {
-        return [
-            'apikey' => env('SUPABASE_ANON_KEY'),
-            'Authorization' => 'Bearer ' . env('SUPABASE_ANON_KEY')
-        ];
-    }
-    
-    /**
-     * Menyimpan komentar baru ke database.
-     * Rute: POST /images/{image}/comments
-     */
-    public function store(Request $request, $image) // $image adalah ID gambar
+    /* ============================================================
+     |  HELPER: HEADER OTENTIKASI (CUD → WAJIB JWT)
+     ============================================================ */
+    private function getAuthHeaders()
     {
-        // 1. Cek Autentikasi & Header
+        $jwt = $this->getAuthJwt();
+
+        return [
+            'apikey'        => env('SUPABASE_ANON_KEY'),
+            'Authorization' => 'Bearer ' . $jwt,
+            'Content-Type'  => 'application/json',
+        ];
+    }
+
+    /* ============================================================
+     |  HELPER: HEADER BACA (READ ONLY)
+     ============================================================ */
+    private function getPublicHeaders()
+    {
+        return [
+            'apikey'        => env('SUPABASE_ANON_KEY'),
+            'Authorization' => 'Bearer ' . env('SUPABASE_ANON_KEY'),
+        ];
+    }
+
+    /* ============================================================
+     |  STORE COMMENT
+     |  POST /images/{image}/comments
+     ============================================================ */
+    public function store(Request $request, $imageId)
+    {
         if (!Auth::check()) {
             return back()->with('error', 'Anda harus login untuk berkomentar.');
         }
+
         $user = Auth::user();
-        $performerId = $user->supabase_uuid; 
-        
-        $authHeaders = $this->getAuthHeaders();
-        // Cek jika header masih menggunakan Anon Key (sesi login bermasalah)
-        if (str_contains($authHeaders['Authorization'], env('SUPABASE_ANON_KEY'))) {
-            return back()->with('error', 'Sesi login tidak lengkap. Harap logout dan login ulang.');
+        $performerUUID = $user->supabase_uuid;
+        $jwt           = $user->supabase_jwt;
+
+        if (!$jwt || !$performerUUID) {
+            return back()->with('error', 'Sesi tidak valid. Silakan login ulang.');
         }
 
-        // 2. Validasi Input
         $request->validate([
-            'content' => 'required|string|max:500', 
+            'content' => 'required|string|max:500',
         ]);
 
         try {
-            // 2.1. Temukan Pemilik Karya (Recipient)
-            $headers = $this->getSupabaseHeaders();
-            $imageUrl = env('SUPABASE_REST_URL') . '/images?select=user_id&id=eq.'.$image;
-            $imageResponse = Http::withHeaders($headers)->get($imageUrl);
-            
-            if (!$imageResponse->successful() || empty($imageResponse->json())) {
-                Log::error('❌ GAGAL MENDAPATKAN PEMILIK KARYA UNTUK NOTIFIKASI.');
-                return back()->with('error', 'Gagal memproses komentar (Karya tidak ditemukan).');
+            /* ============================================================
+             | STEP 1 — Dapatkan ID pemilik gambar
+             ============================================================ */
+            $imageQuery = env('SUPABASE_REST_URL') .
+                "/images?select=user_id&id=eq.$imageId";
+
+            $imageRes = Http::withHeaders($this->getPublicHeaders())
+                ->withoutVerifying()
+                ->get($imageQuery);
+
+            $imgJson = $imageRes->json();
+            if (empty($imgJson)) {
+                return back()->with('error', 'Gambar tidak ditemukan.');
             }
-            $recipientId = $imageResponse->json()[0]['user_id'] ?? null;
-            $shouldNotify = ($performerId !== $recipientId) && $recipientId;
-            
-            
-            // 3. Persiapkan Data
+
+            $recipientUUID = $imgJson[0]['user_id'];
+            $shouldNotify  = ($recipientUUID !== $performerUUID);
+
+            /* ============================================================
+             | STEP 2 — Insert komentar
+             ============================================================ */
             $commentData = [
-                'content' => $request->content,
-                'image_id' => $image,
-                'user_id' => $performerId,
+                'content'    => $request->content,
+                'image_id'   => $imageId,
+                'user_id'    => $performerUUID,
                 'created_at' => now()->toIso8601String(),
             ];
-            $databaseUrl = env('SUPABASE_REST_URL');
-            
-            // 4. Proses POST Komentar (Serial Request)
-            
-            // Komentar - Harus berhasil
-            $commentResponse = Http::withHeaders(array_merge($authHeaders, ['Prefer' => 'return=representation']))
-                                 ->post($databaseUrl . '/comments', $commentData);
-            
-            // 5. Cek Hasil Komentar (KRITIS)
-            if (!$commentResponse->successful()) {
-                $errorBody = $commentResponse->body();
-                Log::error('❌ COMMENT_INSERT_FAILURE:', ['status' => $commentResponse->status(), 'error_body' => $errorBody]);
-                
-                // MENGEMBALIKAN ERROR RLS 401 DENGAN JELAS
-                $message = $commentResponse->status() == 401 ? 'Akses ditolak (401). Policy RLS INSERT "comments" salah.' : 'Gagal mengirim komentar.';
-                return back()->with('error', $message);
+
+            $commentRes = Http::withHeaders(array_merge(
+                $this->getAuthHeaders(),
+                ['Prefer' => 'return=representation']
+            ))
+                ->withoutVerifying()
+                ->post(env('SUPABASE_REST_URL') . '/comments', $commentData);
+
+            if (!$commentRes->successful()) {
+                Log::error("❌ INSERT KOMENTAR GAGAL:", [
+                    'status' => $commentRes->status(),
+                    'body'   => $commentRes->body()
+                ]);
+
+                return back()->with('error', 'Gagal menyimpan komentar.');
             }
-            
-            // 6. POST Notifikasi (Serial Request, Opsional)
+
+            /* ============================================================
+             | STEP 3 — Insert Notifikasi (jika bukan komentar ke diri sendiri)
+             ============================================================ */
             if ($shouldNotify) {
-                 $notificationResponse = Http::withHeaders($this->getSupabaseHeaders()) 
-                             ->post($databaseUrl . '/notifications', [
-                                 'recipient_id' => $recipientId,
-                                 'performer_id' => $performerId,
-                                 'image_id' => $image,
-                                 'type' => 'comment',
-                                 'message' => 'Notifikasi akan dibuat oleh Service Class',
-                                 'is_read' => false,
-                                 'created_at' => now()->toIso8601String()
-                             ]);
-                             
-                 if (!$notificationResponse->successful()) {
-                     Log::warning('❌ Notifikasi gagal disimpan di Supabase. Status: ' . $notificationResponse->status());
-                 }
+                $notifPayload = [
+                    'recipient_id' => $recipientUUID,
+                    'performer_id' => $performerUUID,
+                    'image_id'     => $imageId,
+                    'type'         => 'comment',
+                    'message'      => $user->name . ' mengomentari foto Anda',
+                    'is_read'      => false,
+                    'created_at'   => now()->toIso8601String(),
+                ];
+
+                $notifRes = Http::withHeaders($this->getAuthHeaders())
+                    ->withoutVerifying()
+                    ->post(env('SUPABASE_REST_URL') . '/notifications', $notifPayload);
+
+                if (!$notifRes->successful()) {
+                    Log::warning("⚠️ Notifikasi gagal:", [
+                        'status' => $notifRes->status(),
+                        'body'   => $notifRes->body()
+                    ]);
+                }
             }
-            
-            // 7. HAPUS CACHE DETAIL KARYA 
-            Cache::forget('images_detail_' . $image);
+
+            /* ============================================================
+             | STEP 4 — Clear Cache Halaman Detail
+             ============================================================ */
+            Cache::forget('images_detail_' . $imageId);
 
             return back()->with('success', 'Komentar berhasil dikirim!');
-
         } catch (\Exception $e) {
-            // FIX KRITIS: Log error dan kembalikan pesan statis untuk menghindari PHP fatal error di browser
-            Log::error('❌ EXCEPTION FATAL SAAT MENGIRIM KOMENTAR:', ['message' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
+            Log::error("💥 EXCEPTION COMMENT STORE:", ['message' => $e->getMessage()]);
             return back()->with('error', 'Terjadi kesalahan saat menyimpan komentar.');
         }
     }
-    
-    /**
-     * Menghapus komentar berdasarkan ID.
-     * Rute: DELETE /comments/{id}
-     */
+
+    /* ============================================================
+     |  DELETE COMMENT
+     |  DELETE /comments/{id}
+     ============================================================ */
     public function destroy($id)
     {
         if (!Auth::check()) {
@@ -154,52 +159,43 @@ class CommentController extends Controller
         }
 
         try {
-            $authHeaders = $this->getAuthHeaders();
-            $databaseUrl = env('SUPABASE_REST_URL');
-            
-            // 1. AMBIL ID GAMBAR DULU SEBELUM HAPUS
-            $headers = $this->getSupabaseHeaders(); 
-            $commentUrl = $databaseUrl . '/comments?select=image_id&id=eq.'.$id;
-            $commentResponse = Http::withHeaders($headers)->get($commentUrl);
-            
-            $imageId = null;
-            if ($commentResponse->successful() && !empty($commentResponse->json())) {
-                 $imageId = $commentResponse->json()[0]['image_id'] ?? null;
-            } else {
-                 Log::warning('⚠️ Gagal mengambil image_id untuk komentar: ' . $id);
-            }
+            $userUUID = Auth::user()->supabase_uuid;
 
-            // Kriteria DELETE Supabase: ID komentar = $id DAN user_id = user yang sedang login
-            $deleteUrl = $databaseUrl . '/comments?id=eq.'.$id.'&user_id=eq.'.Auth::user()->supabase_uuid;
+            /* --- Ambil image_id komentar dulu untuk update cache --- */
+            $commentQuery = env('SUPABASE_REST_URL') .
+                "/comments?select=image_id&id=eq.$id";
 
-            // 2. Lakukan Request DELETE ke Supabase
-            $response = Http::withHeaders($authHeaders)->delete($deleteUrl);
+            $commentRes = Http::withHeaders($this->getPublicHeaders())
+                ->withoutVerifying()
+                ->get($commentQuery);
 
-            // 3. Cek Hasil Response
+            $imageId = $commentRes->json()[0]['image_id'] ?? null;
+
+            /* --- DELETE komentar --- */
+            $deleteUrl = env('SUPABASE_REST_URL')
+                . "/comments?id=eq.$id&user_id=eq.$userUUID";
+
+            $response = Http::withHeaders($this->getAuthHeaders())
+                ->withoutVerifying()
+                ->delete($deleteUrl);
+
             if (!$response->successful()) {
-                 $errorBody = $response->body();
-                 Log::error('❌ COMMENT_DELETE_FAILURE:', ['status' => $response->status(), 'error_body' => $errorBody, 'comment_id' => $id]);
-                
-                 $message = $response->status() == 401 
-                    ? 'Akses ditolak (401). Policy RLS DELETE "comments" salah.' 
-                    : 'Gagal menghapus komentar. Komentar mungkin sudah tidak ada atau bukan milik Anda. (HTTP Status: ' . $response->status() . ')';
-                    
-                 return back()->with('error', $message);
-            }
-            
-            // 4. HAPUS CACHE DETAIL KARYA (SETELAH DELETE BERHASIL)
-            if ($imageId) {
-                Cache::forget('images_detail_' . $imageId);
-            } else {
-                Log::warning('⚠️ Gagal menghapus cache: image ID tidak ditemukan untuk komentar ' . $id);
-            }
-            
-            // 5. Redirect kembali ke halaman sebelumnya (atau halaman detail gambar)
-            return back()->with('success', 'Komentar berhasil dihapus!');
+                Log::error("❌ DELETE KOMENTAR GAGAL:", [
+                    'status' => $response->status(),
+                    'body'   => $response->body()
+                ]);
 
+                return back()->with('error', 'Komentar gagal dihapus.');
+            }
+
+            if ($imageId) {
+                Cache::forget("images_detail_$imageId");
+            }
+
+            return back()->with('success', 'Komentar berhasil dihapus!');
         } catch (\Exception $e) {
-            Log::error('❌ EXCEPTION FATAL SAAT MENGHAPUS KOMENTAR:', ['message' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
-            return back()->with('error', 'Terjadi kesalahan internal saat menghapus komentar.');
+            Log::error("💥 EXCEPTION DELETE COMMENT:", ['message' => $e->getMessage()]);
+            return back()->with('error', 'Terjadi kesalahan internal.');
         }
     }
 }
