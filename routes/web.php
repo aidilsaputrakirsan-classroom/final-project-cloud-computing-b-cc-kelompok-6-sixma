@@ -123,3 +123,10 @@ Route::middleware('auth')->get(
 Route::middleware('auth')
     ->post('/notifications/read', [NotificationController::class, 'markAllRead'])
     ->name('notifications.read');
+
+
+Route::middleware(['auth', 'role:admin'])->group(function () {
+    Route::get('/admin/dashboard', function () {
+        return view('admin.dashboard'); // sesuaikan view nya
+    })->name('admin.dashboard');
+});
