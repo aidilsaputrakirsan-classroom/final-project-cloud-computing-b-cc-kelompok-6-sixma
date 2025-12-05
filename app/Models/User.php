@@ -12,8 +12,8 @@ class User extends Authenticatable
     use HasFactory, Notifiable;
 
     // FIX KRITIS: Tetapkan Primary Key sebagai ID.
-    protected $primaryKey = 'id';
-    public $incrementing = false;
+    protected $primaryKey = 'id'; 
+    public $incrementing = false; 
     protected $keyType = 'string';
 
     /**
@@ -22,14 +22,13 @@ class User extends Authenticatable
      * @var list<string>
      */
     protected $fillable = [
-        'id',
+        'id',             
         'name',
         'email',
         'password',
-        'role',
         'supabase_uuid',
         'supabase_jwt',    // <--- FIX KRITIS: WAJIB DITAMBAHKAN!
-        'remember_token',
+        'remember_token', 
     ];
 
     /**
@@ -55,10 +54,5 @@ class User extends Authenticatable
             'supabase_uuid' => 'string',
             // Kita tidak perlu mencantumkan JWT di casts jika sudah bertipe string di DB
         ];
-    }
-
-    public function role()
-    {
-        return $this->belongsTo(Role::class);
     }
 }

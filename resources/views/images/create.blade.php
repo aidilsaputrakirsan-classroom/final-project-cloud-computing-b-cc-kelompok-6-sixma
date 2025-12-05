@@ -1,6 +1,5 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -32,7 +31,6 @@
             padding: 40px;
             transition: all 0.4s ease;
         }
-
         .upload-card:hover {
             box-shadow: 0 0 50px rgba(246, 199, 77, 0.3);
             transform: translateY(-4px);
@@ -61,11 +59,10 @@
             transition: all 0.3s ease;
             font-weight: 500;
         }
-
+        
         /* Tambahan styling untuk Select/Dropdown */
         select.form-control {
-            appearance: none;
-            /* Hilangkan default arrow di beberapa browser */
+            appearance: none; /* Hilangkan default arrow di beberapa browser */
             background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath fill='%23F6C74D' d='M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z'/%3E%3C/svg%3E");
             background-repeat: no-repeat;
             background-position: right 0.75rem center;
@@ -95,7 +92,6 @@
             transition: all 0.3s ease;
             box-shadow: 0 0 10px rgba(246, 199, 77, 0.4);
         }
-
         .btn-success:hover {
             background-color: #FFD85C;
             box-shadow: 0 0 25px rgba(246, 199, 77, 0.6);
@@ -109,7 +105,6 @@
             border-radius: 12px;
             transition: all 0.3s ease;
         }
-
         .btn-secondary:hover {
             background-color: rgba(255, 255, 255, 0.2);
         }
@@ -131,15 +126,8 @@
         }
 
         @keyframes fadeIn {
-            from {
-                opacity: 0;
-                transform: scale(0.98);
-            }
-
-            to {
-                opacity: 1;
-                transform: scale(1);
-            }
+            from { opacity: 0; transform: scale(0.98); }
+            to { opacity: 1; transform: scale(1); }
         }
 
         @media (max-width: 576px) {
@@ -150,99 +138,93 @@
         }
     </style>
 </head>
-
 <body>
 
-    @if (session('error'))
-        <div style="background:red;color:white;padding:15px;border-radius:8px;margin-bottom:20px;">
-            <strong>Error:</strong> {{ session('error') }}
-        </div>
-    @endif
-
-    @if ($errors->any())
-        <div style="background:orange;color:white;padding:15px;border-radius:8px;margin-bottom:20px;">
-            <strong>Validasi gagal:</strong>
-            <ul>
-                @foreach ($errors->all() as $error)
-                    <li>{{ $error }}</li>
-                @endforeach
-            </ul>
-        </div>
-    @endif
-
-
-    <div class="upload-card">
-        <h2>Upload Gambar Baru</h2>
-
-        <form action="{{ route('images.store') }}" method="POST" enctype="multipart/form-data">
-            @csrf
-
-            <div class="mb-3">
-                <label for="title" class="form-label">Judul Gambar</label>
-                <input type="text" name="title" id="title" class="form-control"
-                    placeholder="Masukkan judul gambar" required>
-            </div>
-
-            {{-- FIELD BARU: DESKRIPSI --}}
-            <div class="mb-3">
-                <label for="description" class="form-label">Deskripsi Gambar (Opsional)</label>
-                <textarea name="description" id="description" class="form-control" rows="3"
-                    placeholder="Jelaskan kisah dibalik bidikan ini..."></textarea>
-            </div>
-
-            <div class="mb-3">
-                <label for="image" class="form-label">File Gambar</label>
-                <input type="file" name="image" id="image" class="form-control" accept="image/*" required
-                    onchange="previewImage(event)">
-                <div class="image-preview" id="previewContainer">
-                    <img id="previewImage" alt="Preview Gambar">
-                </div>
-            </div>
-
-            {{-- FIELD BARU: KATEGORI SEBAGAI DROPDOWN --}}
-            <div class="mb-4">
-                <label for="category_id" class="form-label">Kategori</label>
-                <select name="category_id" id="category_id" class="form-control" required>
-                    <option value="" disabled selected>Pilih Kategori</option>
-
-                    {{-- DI SINI TEMPAT LOOP DATA KATEGORI DARI DATABASE --}}
-                    @foreach ($categories as $category)
-                        <option value="{{ $category['id'] }}">{{ $category['name'] }}</option>
-                    @endforeach
-
-
-                    {{-- Contoh Statis --}}
-                    {{-- <option value="1">Nature / Alam</option>
-                    <option value="2">Urban / Kota</option>
-                    <option value="3">Portrait / Manusia</option> --}}
-
-                </select>
-            </div>
-
-            {{-- Tambahan: Input User ID tersembunyi (Disarankan menggunakan Auth::user()->id di Controller, bukan di View) --}}
-
-            <div class="text-center">
-                <button type="submit" class="btn btn-success px-4 me-2">Upload</button>
-                <a href="{{ route('gallery.index') }}" class="btn btn-secondary px-4">Kembali</a>
-            </div>
-        </form>
+    @if(session('error'))
+    <div style="background:red;color:white;padding:15px;border-radius:8px;margin-bottom:20px;">
+        <strong>Error:</strong> {{ session('error') }}
     </div>
+@endif
 
-    <script>
-        function previewImage(event) {
-            const file = event.target.files[0];
-            const previewContainer = document.getElementById('previewContainer');
-            const previewImage = document.getElementById('previewImage');
+@if($errors->any())
+    <div style="background:orange;color:white;padding:15px;border-radius:8px;margin-bottom:20px;">
+        <strong>Validasi gagal:</strong>
+        <ul>
+            @foreach ($errors->all() as $error)
+                <li>{{ $error }}</li>
+            @endforeach
+        </ul>
+    </div>
+@endif
 
-            if (file) {
-                previewImage.src = URL.createObjectURL(file);
-                previewContainer.style.display = 'block';
-            } else {
-                previewContainer.style.display = 'none';
-            }
+
+<div class="upload-card">
+    <h2>Upload Gambar Baru</h2>
+
+    <form action="{{ route('images.store') }}" method="POST" enctype="multipart/form-data">
+        @csrf
+
+        <div class="mb-3">
+            <label for="title" class="form-label">Judul Gambar</label>
+            <input type="text" name="title" id="title" class="form-control" placeholder="Masukkan judul gambar" required>
+        </div>
+        
+        {{-- FIELD BARU: DESKRIPSI --}}
+        <div class="mb-3">
+            <label for="description" class="form-label">Deskripsi Gambar (Opsional)</label>
+            <textarea name="description" id="description" class="form-control" rows="3" placeholder="Jelaskan kisah dibalik bidikan ini..."></textarea>
+        </div>
+
+        <div class="mb-3">
+            <label for="image" class="form-label">File Gambar</label>
+            <input type="file" name="image" id="image" class="form-control" accept="image/*" required onchange="previewImage(event)">
+            <div class="image-preview" id="previewContainer">
+                <img id="previewImage" alt="Preview Gambar">
+            </div>
+        </div>
+
+        {{-- FIELD BARU: KATEGORI SEBAGAI DROPDOWN --}}
+        <div class="mb-4">
+            <label for="category_id" class="form-label">Kategori</label>
+            <select name="category_id" id="category_id" class="form-control" required>
+                <option value="" disabled selected>Pilih Kategori</option>
+                
+                {{-- DI SINI TEMPAT LOOP DATA KATEGORI DARI DATABASE --}}
+                {{-- @foreach ($categories as $category)
+                    <option value="{{ $category->id }}">{{ $category->name }}</option>
+                @endforeach --}}
+                
+                {{-- Contoh Statis --}}
+                <option value="1">Nature / Alam</option>
+                <option value="2">Urban / Kota</option>
+                <option value="3">Portrait / Manusia</option>
+                
+            </select>
+        </div>
+        
+        {{-- Tambahan: Input User ID tersembunyi (Disarankan menggunakan Auth::user()->id di Controller, bukan di View) --}}
+
+        <div class="text-center">
+            <button type="submit" class="btn btn-success px-4 me-2">Upload</button>
+            <a href="{{ route('gallery.index') }}" class="btn btn-secondary px-4">Kembali</a>
+        </div>
+    </form>
+</div>
+
+<script>
+    function previewImage(event) {
+        const file = event.target.files[0];
+        const previewContainer = document.getElementById('previewContainer');
+        const previewImage = document.getElementById('previewImage');
+
+        if (file) {
+            previewImage.src = URL.createObjectURL(file);
+            previewContainer.style.display = 'block';
+        } else {
+            previewContainer.style.display = 'none';
         }
-    </script>
+    }
+</script>
 
 </body>
-
 </html>
