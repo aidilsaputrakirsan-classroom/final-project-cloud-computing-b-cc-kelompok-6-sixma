@@ -201,6 +201,27 @@ Kami melaksanakan proyek ini dengan pembagian tugas utama sebagai berikut:
 
 -----
 
+## 8. Lampiran Visual
+Berikut adalah beberapa tampilan antarmuka utama proyek Artrium:
+
+### 1. Galeri Publik
+![Tampilan utama galeri publik Artrium](public/docs/screenshots/homeuser.png)
+
+### 2. Halaman Detail Karya
+![Halaman yang menampilkan detail karya](public/docs/screenshots/view.png)
+
+### 3. Halaman Pencarian Karya
+![Halaman yang menampilkan ekplorasi karya](public/docs/screenshots/explore.png)
+
+### 4. Halaman Form Pelaporan
+![Halaman yang menampilkan form untuk melaporkan karya yang melanggar aturan](public/docs/screenshots/report.png)
+
+### 5. Halaman Profil
+![Halaman yang menampilkan profil dan karya-karya yang telah dibuat oleh pengguna](public/docs/screenshots/karyauser.png)
+
+### 6. Halaman Detail Karya Profil
+![Halaman yang menampilkan detail dari yang dibuat oleh pengguna](public/docs/screenshots/detailkaryaprofil.png)
+
 ## Support
 
 Jika ada pertanyaan atau issues, silakan:
