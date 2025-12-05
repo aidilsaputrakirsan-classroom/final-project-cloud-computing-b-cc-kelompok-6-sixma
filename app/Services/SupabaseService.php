@@ -3,21 +3,35 @@
 namespace App\Services;
 
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 
 class SupabaseService
 {
   protected string $baseUrl;
-  protected string $apiKey;
-  protected string $schema = 'public';
-  protected string $table = '';
+  protected string $anonKey;
+  protected ?string $jwt = null;      // << NEW: JWT User jika ada
+
   protected array $queryParams = [];
+  protected string $table = '';
 
   public function __construct()
   {
     $this->baseUrl = rtrim(env('SUPABASE_REST_URL'), '/');
-    $this->apiKey = env('SUPABASE_ANON_KEY');
+    $this->anonKey = env('SUPABASE_ANON_KEY');
   }
 
+  /* ============================================================
+     | AUTH Override (PENTING untuk RLS)
+     ============================================================ */
+  public function auth(string $jwt): static
+  {
+    $this->jwt = $jwt;
+    return $this;
+  }
+
+  /* ============================================================
+     | Table Builder
+     ============================================================ */
   public function table(string $table): static
   {
     $this->table = $table;
@@ -31,62 +45,138 @@ class SupabaseService
     return $this;
   }
 
-  public function order(string $column, string $direction = 'asc'): static
-  {
-    $this->queryParams['order'] = "{$column}.{$direction}";
-    return $this;
-  }
-
-  public function eq(string $column, string $value): static
+  public function eq(string $column, $value): static
   {
     $this->queryParams[$column] = "eq.$value";
     return $this;
   }
 
-  public function limit(int $limit): static
+  public function filterRaw(string $column, string $expression): static
   {
-    $this->queryParams['limit'] = $limit;
+    $this->queryParams[$column] = $expression;
     return $this;
   }
 
-  protected function buildUrl(): string
+  public function in(string $column, array $values): static
   {
-    $query = http_build_query($this->queryParams);
-    return "{$this->baseUrl}/{$this->table}?{$query}";
+    $list = implode(',', $values);
+    $this->queryParams[$column] = "in.($list)";
+    return $this;
   }
 
-  protected function client()
+  public function order(string $column, string $direction = 'asc'): static
   {
+    $this->queryParams['order'] = "$column.$direction";
+    return $this;
+  }
+
+  /* ============================================================
+     | Build URL
+     ============================================================ */
+  private function buildUrl()
+  {
+    return $this->baseUrl . '/' . $this->table . '?' . http_build_query($this->queryParams);
+  }
+
+  /* ============================================================
+     | HTTP Client
+     ============================================================ */
+  private function client()
+  {
+    $token = $this->jwt ?? $this->anonKey;
+
     return Http::withHeaders([
-      'apikey'        => $this->apiKey,
-      'Authorization' => "Bearer {$this->apiKey}",
-      'Content-Type'  => 'application/json'
-    ])->withoutVerifying(); // Fix cURL SSL error 60
+      'apikey'        => $this->anonKey,
+      'Authorization' => "Bearer {$token}",
+      'Content-Type'  => 'application/json',
+    ])
+      ->timeout(10)
+      ->retry(2, 200)
+      ->withoutVerifying();
   }
 
+  /* ============================================================
+     | GET
+     ============================================================ */
   public function get()
   {
-    return $this->client()->get($this->buildUrl())->json();
+    try {
+      $response = $this->client()->get($this->buildUrl());
+      return $response->json();
+    } catch (\Throwable $e) {
+      Log::error("Supabase SELECT exception: " . $e->getMessage());
+      return null;
+    }
   }
 
+  /* ============================================================
+     | FIRST
+     ============================================================ */
+  public function first()
+  {
+    $result = $this->get();
+    return $result[0] ?? null;
+  }
+
+  /* ============================================================
+     | INSERT (RLS fix → JWT user)
+     ============================================================ */
   public function insert(array $data)
   {
-    return $this->client()
-      ->post("{$this->baseUrl}/{$this->table}", $data)
-      ->json();
+    try {
+      $response = $this->client()->post("{$this->baseUrl}/{$this->table}", $data);
+      return $response->json();
+    } catch (\Throwable $e) {
+      Log::error("Supabase INSERT error: " . $e->getMessage());
+      return null;
+    }
   }
 
+  /* ============================================================
+     | UPDATE
+     ============================================================ */
   public function update(string $id, array $data)
   {
-    return $this->client()
-      ->patch("{$this->baseUrl}/{$this->table}?id=eq.$id", $data)
-      ->json();
+    try {
+      $url = "{$this->baseUrl}/{$this->table}?id=eq.$id";
+      $response = $this->client()->patch($url, $data);
+      return $response->json();
+    } catch (\Throwable $e) {
+      Log::error("Supabase UPDATE error: " . $e->getMessage());
+      return null;
+    }
   }
 
+  /* ============================================================
+     | DELETE
+     ============================================================ */
   public function delete(string $id)
   {
-    return $this->client()
-      ->delete("{$this->baseUrl}/{$this->table}?id=eq.$id")
-      ->json();
+    try {
+      $url = "{$this->baseUrl}/{$this->table}?id=eq.$id";
+      return $this->client()->delete($url)->json();
+    } catch (\Throwable $e) {
+      Log::error("Supabase DELETE error: " . $e->getMessage());
+      return null;
+    }
+  }
+
+  /* ============================================================
+     | STORAGE UPLOAD
+     ============================================================ */
+  public function uploadFile(string $bucket, string $filename, string $content, string $mime, string $jwt)
+  {
+    $url = env('SUPABASE_URL') . "/storage/v1/object/$bucket/$filename";
+
+    return Http::withHeaders([
+      'Authorization' => "Bearer $jwt",
+      'Content-Type'  => $mime,
+      'x-upsert'      => 'true',
+    ])
+      ->timeout(10)
+      ->retry(2, 200)
+      ->withBody($content, $mime)
+      ->withoutVerifying()
+      ->put($url);
   }
 }

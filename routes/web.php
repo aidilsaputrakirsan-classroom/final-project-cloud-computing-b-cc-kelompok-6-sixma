@@ -10,6 +10,7 @@ use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\LikeController; // KRITIS: Pastikan LikeController terimport
 
+
 /*
 |--------------------------------------------------------------------------
 | Web Routes
@@ -130,3 +131,4 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
         return view('admin.dashboard'); // sesuaikan view nya
     })->name('admin.dashboard');
 });
+
