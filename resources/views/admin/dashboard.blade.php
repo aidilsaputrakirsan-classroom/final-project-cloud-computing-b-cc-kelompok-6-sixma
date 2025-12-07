@@ -195,7 +195,6 @@
         </div>
     </div>
 </div>
-
 {{-- TABEL 2: PENDAFTARAN USER BARU --}}
 <div class="row">
     <div class="col-12">
@@ -203,14 +202,16 @@
             <div class="card-header border-bottom border-dashed d-flex align-items-center justify-content-between">
                 <h4 class="card-title mb-0">User Baru Terdaftar</h4>
                 <div class="d-flex gap-2">
-                    {{-- Tombol Refresh (Tetap Ada) --}}
+                    {{-- Tombol Refresh --}}
                     <button class="btn btn-sm btn-light"><i class="bx bx-refresh"></i> Refresh</button>
                 </div>
             </div>
             <div class="card-body">
-                <div class="table-responsive">
+                {{-- MODIFIKASI: Container Scrollable --}}
+                <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
                     <table class="table table-nowrap mb-0">
-                        <thead>
+                        {{-- MODIFIKASI: Header Sticky agar tetap terlihat saat scroll --}}
+                        <thead class="bg-light sticky-top" style="position: sticky; top: 0; z-index: 1;">
                             <tr>
                                 <th>Nama</th>
                                 <th>Email</th>
@@ -246,7 +247,7 @@
                             </tr>
                             @empty
                             <tr>
-                                {{-- Colspan disesuaikan jadi 4 karena kolom aksi hilang --}}
+                                {{-- Colspan 4 karena kolom aksi hilang --}}
                                 <td colspan="4" class="text-center">Belum ada user terdaftar.</td>
                             </tr>
                             @endforelse
@@ -257,7 +258,6 @@
         </div>
     </div>
 </div>
-
 @endsection
 
 @section('scripts')
