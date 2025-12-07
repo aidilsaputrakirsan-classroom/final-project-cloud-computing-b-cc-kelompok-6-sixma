@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\Admin\AdminDashboardController; // Pastikan ini ada
 use App\Http\Controllers\ImageController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
@@ -8,7 +9,7 @@ use App\Http\Controllers\Auth\RegisteredUserController;
 use App\Http\Controllers\CommentController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\ReportController;
-use App\Http\Controllers\LikeController; // KRITIS: Pastikan LikeController terimport
+use App\Http\Controllers\LikeController; 
 
 /*
 |--------------------------------------------------------------------------
@@ -41,7 +42,7 @@ Route::middleware('guest')->group(function () {
 Route::post('logout', [AuthenticatedSessionController::class, 'destroy'])->name('logout');
 
 // ========================================================================
-// 3. PROTECTED ROUTES with Middleware (Hanya untuk User yang Sudah Login - CRUD & Profile)
+// 3. PROTECTED ROUTES with Middleware (Hanya untuk User yang Sudah Login)
 // ========================================================================
 
 Route::middleware(['auth', 'role:user'])->group(function () {
@@ -69,40 +70,8 @@ Route::middleware(['auth', 'role:user'])->group(function () {
 
     // RUTE LIKES 
     Route::post('images/{image}/like', [LikeController::class, 'toggle'])
-        ->name('likes.toggle'); // <<< Rute target yang error 404
+        ->name('likes.toggle');
 });
-
-// ========================================================================
-// 3. PROTECTED ROUTES (Hanya untuk User yang Sudah Login - CRUD & Profile)
-// ========================================================================
-
-// Route::middleware('auth')->group(function () {
-
-//     // Rute Profile Saya
-//     Route::get('/profile', [ProfileController::class, 'showProfile'])->name('profile.show');
-
-//     // CRUD GAMBAR
-//     Route::get('images/create', [ImageController::class, 'create'])->name('images.create');
-//     Route::post('images', [ImageController::class, 'store'])->name('images.store');
-
-//     Route::get('images/{id}/edit', [ImageController::class, 'edit'])->name('images.edit');
-//     Route::patch('images/{id}', [ImageController::class, 'update'])->name('images.update');
-//     Route::delete('images/{id}', [ImageController::class, 'destroy'])->name('images.destroy');
-
-//     // RUTE KOMENTAR
-//     Route::post('images/{image}/comments', [CommentController::class, 'store'])
-//         ->name('comments.store');
-//     Route::delete('comments/{id}', [CommentController::class, 'destroy'])
-//         ->name('comments.destroy');
-
-//     // RUTE PELAPORAN (REPORT)
-//     Route::post('images/{image}/report', [ReportController::class, 'store'])
-//         ->name('reports.store');
-
-//     // RUTE LIKES 
-//     Route::post('images/{image}/like', [LikeController::class, 'toggle'])
-//         ->name('likes.toggle'); // <<< Rute target yang error 404
-// });
 
 
 // ========================================================================
@@ -115,18 +84,21 @@ Route::get('/explore', [ImageController::class, 'index'])->name('gallery.index')
 // Detail gambar (Rute Dinamis)
 Route::get('images/{id}', [ImageController::class, 'show'])->name('images.show');
 
-// Notif 
+// Notifikasi
 Route::middleware('auth')->get(
     '/notifications',
     [NotificationController::class, 'index']
 )->name('notifications');
+
 Route::middleware('auth')
     ->post('/notifications/read', [NotificationController::class, 'markAllRead'])
     ->name('notifications.read');
 
 
-Route::middleware(['auth', 'role:admin'])->group(function () {
-    Route::get('/admin/dashboard', function () {
-        return view('admin.dashboard'); // sesuaikan view nya
-    })->name('admin.dashboard');
-});
+// ========================================================================
+// 5. ADMIN ROUTES
+// ========================================================================
+
+// [PERBAIKAN] Menggunakan Controller agar data statistik terkirim ke View
+Route::get('/admin/dashboard', [AdminDashboardController::class, 'index'])
+    ->name('admin.dashboard');

@@ -6,13 +6,14 @@
 @include('layouts.partials/page-title', ['title' => 'Admin Panel', 'subtitle' => 'System Overview'])
 
 <div class="row">
+    {{-- WIDGET 1: TOTAL USER --}}
     <div class="col-md-6 col-xl-3">
         <div class="card">
             <div class="card-body">
                 <div class="row">
                     <div class="col-6">
                         <p class="text-muted mb-0 text-truncate">Total User</p>
-                        <h3 class="text-dark mt-2 mb-0">12,450</h3>
+                        <h3 class="text-dark mt-2 mb-0">{{ number_format($totalUsers) }}</h3>
                     </div>
                     <div class="col-6">
                         <div class="ms-auto avatar-md bg-soft-primary rounded">
@@ -21,20 +22,24 @@
                     </div>
                 </div>
                 <div class="mt-3">
-                    <span class="text-success me-1"><i class="bx bx-up-arrow-alt"></i> 5.2%</span>
+                    <span class="{{ $userGrowth >= 0 ? 'text-success' : 'text-danger' }} me-1">
+                        <i class="bx {{ $userGrowth >= 0 ? 'bx-up-arrow-alt' : 'bx-down-arrow-alt' }}"></i> 
+                        {{ number_format(abs($userGrowth), 1) }}%
+                    </span>
                     <span class="text-muted">Sejak bulan lalu</span>
                 </div>
             </div>
         </div>
     </div>
 
+    {{-- WIDGET 2: ONLINE USERS --}}
     <div class="col-md-6 col-xl-3">
         <div class="card">
             <div class="card-body">
                 <div class="row">
                     <div class="col-6">
-                        <p class="text-muted mb-0 text-truncate">Admin Aktif</p>
-                        <h3 class="text-dark mt-2 mb-0">18</h3>
+                        <p class="text-muted mb-0 text-truncate">User Online</p>
+                        <h3 class="text-dark mt-2 mb-0">{{ $onlineUsers }}</h3>
                     </div>
                     <div class="col-6">
                         <div class="ms-auto avatar-md bg-soft-info rounded">
@@ -43,41 +48,45 @@
                     </div>
                 </div>
                 <div class="mt-3">
-                    <span class="text-muted">Online saat ini: </span>
-                    <span class="text-dark fw-bold">4</span>
+                    <span class="text-muted">Sesi Aktif: </span>
+                    <span class="text-dark fw-bold">{{ $onlineUsers }}</span>
                 </div>
             </div>
         </div>
     </div>
 
+    {{-- WIDGET 3: KESEHATAN SERVER (Diganti Total Upload) --}}
     <div class="col-md-6 col-xl-3">
         <div class="card">
             <div class="card-body">
                 <div class="row">
                     <div class="col-6">
-                        <p class="text-muted mb-0 text-truncate">Kesehatan Server</p>
-                        <h3 class="text-dark mt-2 mb-0">98%</h3>
+                        <p class="text-muted mb-0 text-truncate">Total Uploads</p>
+                        <h3 class="text-dark mt-2 mb-0">{{ $totalImages }}</h3>
                     </div>
                     <div class="col-6">
                         <div class="ms-auto avatar-md bg-soft-success rounded">
-                            <iconify-icon icon="solar:server-square-bold" class="fs-32 avatar-title text-success"></iconify-icon>
+                            <iconify-icon icon="solar:gallery-bold" class="fs-32 avatar-title text-success"></iconify-icon>
                         </div>
                     </div>
                 </div>
-                <div class="progress mt-3" style="height: 5px;">
-                    <div class="progress-bar bg-success" role="progressbar" style="width: 98%" aria-valuenow="98" aria-valuemin="0" aria-valuemax="100"></div>
+                <div class="mt-3">
+                     {{-- Placeholder statis untuk kesehatan server karena butuh tool khusus --}}
+                    <span class="text-success me-1">Server OK</span>
+                    <span class="text-muted">Database Connected</span>
                 </div>
             </div>
         </div>
     </div>
 
+    {{-- WIDGET 4: LAPORAN BARU --}}
     <div class="col-md-6 col-xl-3">
         <div class="card">
             <div class="card-body">
                 <div class="row">
                     <div class="col-6">
                         <p class="text-muted mb-0 text-truncate">Laporan Baru</p>
-                        <h3 class="text-dark mt-2 mb-0">5</h3>
+                        <h3 class="text-dark mt-2 mb-0">{{ $pendingReportsCount }}</h3>
                     </div>
                     <div class="col-6">
                         <div class="ms-auto avatar-md bg-soft-danger rounded">
@@ -86,7 +95,7 @@
                     </div>
                 </div>
                 <div class="mt-3">
-                    <span class="text-danger me-1"><i class="bx bx-error"></i> 2 Kritis</span>
+                    <span class="text-danger me-1"><i class="bx bx-error"></i> {{ $criticalReports }} Pending</span>
                     <span class="text-muted">Perlu tindakan</span>
                 </div>
             </div>
@@ -94,138 +103,91 @@
     </div>
 </div>
 
-<div class="row">
-    <div class="col-xl-4">
-        <div class="card card-height-100">
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <h4 class="card-title mb-0">Penggunaan Resource</h4>
-                <div class="dropdown">
-                    <a href="#" class="dropdown-toggle btn btn-sm btn-outline-light" data-bs-toggle="dropdown" aria-expanded="false">
-                        <i class="bx bx-dots-vertical-rounded"></i>
-                    </a>
-                    <div class="dropdown-menu dropdown-menu-end">
-                        <a href="javascript:void(0);" class="dropdown-item">Refresh</a>
-                        <a href="javascript:void(0);" class="dropdown-item">Detail</a>
-                    </div>
-                </div>
-            </div>
-            <div class="card-body">
-                <div class="mb-4">
-                    <h5 class="card-title mb-2">CPU Usage</h5>
-                    <div class="d-flex align-items-center gap-2">
-                        <div class="progress flex-grow-1" style="height: 8px;">
-                            <div class="progress-bar bg-primary" role="progressbar" style="width: 45%" aria-valuenow="45" aria-valuemin="0" aria-valuemax="100"></div>
-                        </div>
-                        <span class="fw-bold">45%</span>
-                    </div>
-                </div>
-                <div class="mb-4">
-                    <h5 class="card-title mb-2">Memory (RAM)</h5>
-                    <div class="d-flex align-items-center gap-2">
-                        <div class="progress flex-grow-1" style="height: 8px;">
-                            <div class="progress-bar bg-warning" role="progressbar" style="width: 68%" aria-valuenow="68" aria-valuemin="0" aria-valuemax="100"></div>
-                        </div>
-                        <span class="fw-bold">68%</span>
-                    </div>
-                </div>
-                <div class="mb-4">
-                    <h5 class="card-title mb-2">Disk Space</h5>
-                    <div class="d-flex align-items-center gap-2">
-                        <div class="progress flex-grow-1" style="height: 8px;">
-                            <div class="progress-bar bg-info" role="progressbar" style="width: 25%" aria-valuenow="25" aria-valuemin="0" aria-valuemax="100"></div>
-                        </div>
-                        <span class="fw-bold">25%</span>
-                    </div>
-                </div>
-                
-                <div class="alert alert-soft-warning mb-0" role="alert">
-                    <i class="bx bx-info-circle me-1"></i> Jadwal backup berikutnya: <strong>02:00 AM</strong>
-                </div>
-            </div>
-        </div>
-    </div>
-
+    {{-- TABEL 1: LOG AKTIVITAS (Menggunakan Data Reports Terbaru) --}}
+   <div class="row">
+    {{-- TABEL 1: LOG AKTIVITAS TERPUSAT (Reports, Comments, Likes) --}}
     <div class="col-xl-8">
         <div class="card card-height-100">
             <div class="card-header d-flex justify-content-between align-items-center">
-                <h4 class="card-title mb-0">Log Aktivitas Sistem</h4>
-                <a href="#!" class="btn btn-sm btn-light">Lihat Semua Log</a>
+                <h4 class="card-title mb-0">Log Aktivitas User</h4>
+                <a href="#!" class="btn btn-sm btn-light">Lihat Semua</a>
             </div>
             <div class="card-body">
                 <div class="table-responsive">
                     <table class="table table-hover mb-0 table-centered">
                         <thead class="bg-light bg-opacity-50">
                             <tr>
-                                <th class="py-2">Waktu</th>
-                                <th class="py-2">User/Admin</th>
+                                <th class="py-2" style="width: 150px;">Waktu</th>
+                                <th class="py-2">User</th>
                                 <th class="py-2">Aktivitas</th>
-                                <th class="py-2">Status</th>
-                                <th class="py-2">IP Address</th>
+                                <th class="py-2">Detail</th>
                             </tr>
                         </thead>
                         <tbody>
+                            @forelse($activities as $activity)
                             <tr>
-                                <td>10:45 AM</td>
-                                <td>
-                                    <div class="d-flex align-items-center">
-                                        <img src="/images/users/avatar-2.jpg" class="avatar-xs rounded-circle me-2" alt="user">
-                                        <div>
-                                            <h6 class="mb-0">Budi Admin</h6>
-                                            <small class="text-muted">Super Admin</small>
-                                        </div>
-                                    </div>
+                                {{-- KOLOM 1: WAKTU --}}
+                                <td class="text-muted small">
+                                    <i class="bx bx-time-five me-1"></i>
+                                    {{ $activity->created_at->diffForHumans() }}
                                 </td>
-                                <td>Update Konfigurasi App</td>
-                                <td><span class="badge badge-soft-success">Sukses</span></td>
-                                <td class="text-muted">192.168.1.10</td>
-                            </tr>
-                            <tr>
-                                <td>10:30 AM</td>
-                                <td>
-                                    <div class="d-flex align-items-center">
-                                        <img src="/images/users/avatar-3.jpg" class="avatar-xs rounded-circle me-2" alt="user">
-                                        <div>
-                                            <h6 class="mb-0">Siti Editor</h6>
-                                            <small class="text-muted">Content Mod</small>
-                                        </div>
-                                    </div>
-                                </td>
-                                <td>Hapus Artikel #404</td>
-                                <td><span class="badge badge-soft-warning">Pending</span></td>
-                                <td class="text-muted">192.168.1.15</td>
-                            </tr>
-                            <tr>
-                                <td>09:15 AM</td>
+
+                                {{-- KOLOM 2: USER --}}
                                 <td>
                                     <div class="d-flex align-items-center">
                                         <div class="avatar-xs flex-shrink-0 me-2">
-                                            <span class="avatar-title bg-soft-danger text-danger rounded-circle">S</span>
+                                            <span class="avatar-title bg-soft-primary text-primary rounded-circle">
+                                                {{ substr($activity->user->name ?? 'G', 0, 1) }}
+                                            </span>
                                         </div>
                                         <div>
-                                            <h6 class="mb-0">System</h6>
-                                            <small class="text-muted">Otomatis</small>
+                                            <h6 class="mb-0 font-size-14">{{ $activity->user->name ?? 'Guest' }}</h6>
                                         </div>
                                     </div>
                                 </td>
-                                <td>Gagal Backup Database</td>
-                                <td><span class="badge badge-soft-danger">Error</span></td>
-                                <td class="text-muted">Localhost</td>
-                            </tr>
-                            <tr>
-                                <td>08:00 AM</td>
+
+                                {{-- KOLOM 3: JENIS AKTIVITAS (ICON + LABEL) --}}
                                 <td>
-                                    <div class="d-flex align-items-center">
-                                        <img src="/images/users/avatar-1.jpg" class="avatar-xs rounded-circle me-2" alt="user">
-                                        <div>
-                                            <h6 class="mb-0">Andi Manager</h6>
-                                            <small class="text-muted">Admin</small>
+                                    @if($activity->type == 'report')
+                                        <div class="badge badge-soft-danger font-size-12">
+                                            <i class="bx bx-error me-1"></i> Melaporkan
                                         </div>
+                                    @elseif($activity->type == 'comment')
+                                        <div class="badge badge-soft-info font-size-12">
+                                            <i class="bx bx-comment-detail me-1"></i> Berkomentar
+                                        </div>
+                                    @elseif($activity->type == 'like')
+                                        <div class="badge badge-soft-danger font-size-12" style="background-color: #fde8e8; color: #e02424;">
+                                            <i class="bx bxs-heart me-1"></i> Menyukai
+                                        </div>
+                                    @endif
+                                </td>
+
+                                {{-- KOLOM 4: DETAIL KONTEN --}}
+                                <td>
+                                    @if($activity->type == 'report')
+                                        <div class="d-flex flex-column">
+                                            <span class="fw-bold text-danger">{{ $activity->reason }}</span>
+                                            <small class="text-muted fst-italic">"{{ Str::limit($activity->details ?? $activity->comment, 30) }}"</small>
+                                        </div>
+                                    @elseif($activity->type == 'comment')
+                                        <span class="text-dark">"{{ Str::limit($activity->content, 40) }}"</span>
+                                        <small class="text-muted d-block">pada post #{{ $activity->image_id ?? '-' }}</small>
+                                    @elseif($activity->type == 'like')
+                                        <span class="text-muted">Menyukai postingan gambar <span class="fw-bold">#{{ $activity->image_id ?? 'ID' }}</span></span>
+                                    @endif
+                                </td>
+                            </tr>
+                            @empty
+                            <tr>
+                                <td colspan="4" class="text-center py-4">
+                                    <div class="text-muted">
+                                        <i class="bx bx-info-circle fs-4 mb-2"></i><br>
+                                        Belum ada aktivitas user (Like, Comment, atau Report).
                                     </div>
                                 </td>
-                                <td>Login Dashboard</td>
-                                <td><span class="badge badge-soft-success">Sukses</span></td>
-                                <td class="text-muted">182.10.33.2</td>
                             </tr>
+                            @endforelse
                         </tbody>
                     </table>
                 </div>
@@ -234,14 +196,15 @@
     </div>
 </div>
 
+{{-- TABEL 2: PENDAFTARAN USER BARU --}}
 <div class="row">
     <div class="col-12">
         <div class="card">
             <div class="card-header border-bottom border-dashed d-flex align-items-center justify-content-between">
-                <h4 class="card-title mb-0">Pendaftaran User Baru (Menunggu Verifikasi)</h4>
+                <h4 class="card-title mb-0">User Baru Terdaftar</h4>
                 <div class="d-flex gap-2">
-                    <button class="btn btn-sm btn-danger"><i class="bx bx-x"></i> Tolak Semua</button>
-                    <button class="btn btn-sm btn-success"><i class="bx bx-check"></i> Setujui Semua</button>
+                    {{-- Tombol Refresh (Tetap Ada) --}}
+                    <button class="btn btn-sm btn-light"><i class="bx bx-refresh"></i> Refresh</button>
                 </div>
             </div>
             <div class="card-body">
@@ -249,59 +212,44 @@
                     <table class="table table-nowrap mb-0">
                         <thead>
                             <tr>
-                                <th>
-                                    <div class="form-check">
-                                        <input class="form-check-input" type="checkbox" id="checkAll">
-                                    </div>
-                                </th>
                                 <th>Nama</th>
                                 <th>Email</th>
                                 <th>Tanggal Daftar</th>
-                                <th>Role Request</th>
-                                <th>Aksi</th>
+                                <th>Status</th>
+                                {{-- Kolom Aksi DIHAPUS --}}
                             </tr>
                         </thead>
                         <tbody>
+                            @forelse($newUsers as $user)
                             <tr>
                                 <td>
-                                    <div class="form-check">
-                                        <input class="form-check-input" type="checkbox" id="user1">
-                                    </div>
-                                </td>
-                                <td>
                                     <div class="d-flex align-items-center gap-2">
-                                        <img src="/images/users/avatar-4.jpg" alt="" class="avatar-xs rounded-circle">
-                                        <span class="fw-semibold">Dimas Anggara</span>
+                                        {{-- Avatar User --}}
+                                        <div class="avatar-xs flex-shrink-0">
+                                            <span class="avatar-title bg-soft-info text-info rounded-circle">
+                                                {{ substr($user->name, 0, 1) }}
+                                            </span>
+                                        </div>
+                                        <span class="fw-semibold">{{ $user->name }}</span>
                                     </div>
                                 </td>
-                                <td>dimas@example.com</td>
-                                <td>24 Jan 2025</td>
-                                <td>Editor</td>
+                                <td>{{ $user->email }}</td>
+                                <td>{{ $user->created_at->format('d M Y') }}</td>
                                 <td>
-                                    <button class="btn btn-sm btn-soft-success"><i class="bx bx-check"></i></button>
-                                    <button class="btn btn-sm btn-soft-danger"><i class="bx bx-trash"></i></button>
+                                    @if($user->email_verified_at)
+                                        <span class="badge badge-soft-success">Verified</span>
+                                    @else
+                                        <span class="badge badge-soft-warning">Unverified</span>
+                                    @endif
                                 </td>
+                                {{-- Tombol Aksi DIHAPUS --}}
                             </tr>
+                            @empty
                             <tr>
-                                <td>
-                                    <div class="form-check">
-                                        <input class="form-check-input" type="checkbox" id="user2">
-                                    </div>
-                                </td>
-                                <td>
-                                    <div class="d-flex align-items-center gap-2">
-                                        <img src="/images/users/avatar-5.jpg" alt="" class="avatar-xs rounded-circle">
-                                        <span class="fw-semibold">Rina Melati</span>
-                                    </div>
-                                </td>
-                                <td>rina.mel@example.com</td>
-                                <td>23 Jan 2025</td>
-                                <td>Author</td>
-                                <td>
-                                    <button class="btn btn-sm btn-soft-success"><i class="bx bx-check"></i></button>
-                                    <button class="btn btn-sm btn-soft-danger"><i class="bx bx-trash"></i></button>
-                                </td>
+                                {{-- Colspan disesuaikan jadi 4 karena kolom aksi hilang --}}
+                                <td colspan="4" class="text-center">Belum ada user terdaftar.</td>
                             </tr>
+                            @endforelse
                         </tbody>
                     </table>
                 </div>
@@ -313,15 +261,7 @@
 @endsection
 
 @section('scripts')
-{{-- Jika Anda ingin menambahkan chart, tambahkan JS file disini --}}
-{{-- @vite(['resources/js/pages/admin-dashboard.js']) --}}
 <script>
-    // Contoh script inline sederhana jika diperlukan (misal untuk select all checkbox)
-    document.getElementById('checkAll').addEventListener('change', function() {
-        var checkboxes = document.querySelectorAll('.form-check-input');
-        for (var checkbox of checkboxes) {
-            checkbox.checked = this.checked;
-        }
-    });
+    // Script JS tambahan jika diperlukan
 </script>
 @endsection
