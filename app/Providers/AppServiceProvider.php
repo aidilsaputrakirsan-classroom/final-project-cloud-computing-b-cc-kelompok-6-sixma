@@ -17,7 +17,9 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        $this->app->singleton('supabase', function () {
+            return new \App\Services\SupabaseService();
+        });
     }
 
     /**
@@ -28,13 +30,13 @@ class AppServiceProvider extends ServiceProvider
         View::composer('*', function ($view) {
             if (Auth::check()) {
                 $userId = Auth::id();
-                
+
                 // FIX LAG: Menggunakan Cache::remember untuk menyimpan hitungan selama 10 menit (600 detik)
                 $notifCount = Cache::remember('user_notif_count_' . $userId, 600, function () use ($userId) {
                     // Hanya panggil service yang lambat ini jika cache sudah kadaluwarsa
                     return NotificationService::unreadCount($userId);
                 });
-                
+
                 $view->with('notifCount', $notifCount);
             } else {
                 $view->with('notifCount', 0);
