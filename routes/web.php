@@ -36,10 +36,12 @@ Route::middleware('guest')->group(function () {
     // LOGIN
     Route::get('login', [AuthenticatedSessionController::class, 'create'])->name('login');
     Route::post('login', [AuthenticatedSessionController::class, 'store']);
+    
 });
 
 // LOGOUT
 Route::post('logout', [AuthenticatedSessionController::class, 'destroy'])->name('logout');
+
 
 // ========================================================================
 // 3. PROTECTED ROUTES with Middleware (Hanya untuk User yang Sudah Login)
@@ -95,10 +97,14 @@ Route::middleware('auth')
     ->name('notifications.read');
 
 
+
+
 // ========================================================================
 // 5. ADMIN ROUTES
 // ========================================================================
 
-// [PERBAIKAN] Menggunakan Controller agar data statistik terkirim ke View
-Route::get('/admin/dashboard', [AdminDashboardController::class, 'index'])
-    ->name('admin.dashboard');
+Route::middleware(['auth', 'role:admin'])->group(function () {
+    Route::get('/admin/dashboard', [AdminDashboardController::class, 'index'])
+        ->name('admin.dashboard');
+});
+

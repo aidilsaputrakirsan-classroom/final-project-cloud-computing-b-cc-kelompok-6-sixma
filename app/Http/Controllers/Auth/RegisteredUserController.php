@@ -12,7 +12,6 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Validation\Rules;
 use Illuminate\Support\Str;
-use Illuminate\Support\Facades\Log;
 
 class RegisteredUserController extends Controller
 {
@@ -23,8 +22,6 @@ class RegisteredUserController extends Controller
 
     public function store(Request $request): RedirectResponse
     {
-        // VALIDASI TANPA CEK UNIQUE DI DATABASE LARAVEL
-        // karena akun dicek oleh Supabase Auth, bukan tabel local
         $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'lowercase', 'email', 'max:255'],
@@ -34,7 +31,7 @@ class RegisteredUserController extends Controller
         $signUpUrl = env('SUPABASE_URL') . '/auth/v1/signup';
         $signInUrl = env('SUPABASE_URL') . '/auth/v1/token?grant_type=password';
 
-        // DAFTAR KE SUPABASE AUTH
+        // REGISTER ke Supabase Auth
         $responseSignUp = Http::withHeaders([
             'apikey' => env('SUPABASE_ANON_KEY'),
             'Content-Type' => 'application/json',
@@ -48,16 +45,14 @@ class RegisteredUserController extends Controller
 
         $responseBody = $responseSignUp->json();
 
-        // HANDLE EMAIL SUDAH TERDAFTAR
         if (!$responseSignUp->successful()) {
             if (isset($responseBody['error_code']) && $responseBody['error_code'] === 'user_already_exists') {
-                return back()->withErrors(['email' => 'Email sudah terdaftar di Supabase. Silakan login.']);
+                return back()->withErrors(['email' => 'Email sudah terdaftar. Silakan login.']);
             }
-
-            return back()->withErrors(['email' => $responseBody['msg'] ?? 'Registrasi di Supabase gagal.']);
+            return back()->withErrors(['email' => $responseBody['msg'] ?? 'Registrasi gagal.']);
         }
 
-        // LOGIN UNTUK AMBIL UUID & JWT
+        // LOGIN otomatis untuk ambil UUID dan JWT
         $responseSignIn = Http::withHeaders([
             'apikey' => env('SUPABASE_ANON_KEY'),
             'Content-Type' => 'application/json',
@@ -80,7 +75,7 @@ class RegisteredUserController extends Controller
             return back()->withErrors(['error' => 'UUID atau JWT Supabase tidak ditemukan.']);
         }
 
-        // SIMPAN KE TABEL USERS LOKAL (Supabase DB)
+        // SIMPAN ke tabel users lokal
         $user = User::updateOrCreate(
             ['email' => $request->email],
             [
@@ -89,6 +84,7 @@ class RegisteredUserController extends Controller
                 'password' => Hash::make($request->password),
                 'supabase_jwt' => $supabaseJwt,
                 'remember_token' => Str::random(60),
+                'role_id' => 2, // <---- DEFAULT ROLE USER
             ]
         );
 

@@ -71,7 +71,9 @@ class AdminDashboardController extends Controller
         }
 
         // 3. USER BARU
-        $newUsers = User::latest()->take(5)->get();
+        $newUsers = User::latest()
+        ->take(20) 
+        ->get();
 
         return view('admin.dashboard', compact(
             'totalUsers',
