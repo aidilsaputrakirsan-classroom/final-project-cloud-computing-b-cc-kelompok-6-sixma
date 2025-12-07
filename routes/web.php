@@ -103,8 +103,7 @@ Route::middleware('auth')
 // 5. ADMIN ROUTES
 // ========================================================================
 
-Route::middleware(['auth', 'role:admin'])->group(function () {
+
     Route::get('/admin/dashboard', [AdminDashboardController::class, 'index'])
         ->name('admin.dashboard');
-});
 

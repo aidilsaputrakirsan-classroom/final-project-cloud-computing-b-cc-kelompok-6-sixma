@@ -1,41 +1,80 @@
 <!DOCTYPE html>
-<html lang="id" @yield('html-attribute')>
-
+<html lang="id">
 <head>
-    {{-- Kita gunakan meta & css bawaan template agar style tidak rusak --}}
     @include('layouts.partials.title-meta', ['title' => $title ?? 'Admin Panel'])
-    @include('layouts.partials.head-css')
+    @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 
-<body>
+{{-- BODY: buat full dark --}}
+<body class="bg-[#0f172a] text-gray-200">
 
-    <div class="app-wrapper">
+    <div class="flex min-h-screen bg-[#0f172a]">
 
-        {{-- Panggil Sidebar Khusus Admin --}}
+        {{-- SIDEBAR --}}
         @include('layouts.admin.sidebar')
 
-        {{-- Panggil Topbar Khusus Admin --}}
-        @include('layouts.admin.topbar')
+        {{-- MAIN WRAPPER --}}
+        <div id="main-wrapper"
+             class="flex flex-col flex-1 ml-64 transition-all duration-300 bg-[#0f172a] min-h-screen">
 
-        <div class="page-content">
-            <div class="container-fluid">
-                
-                {{-- Area Konten Berubah-ubah --}}
+            {{-- TOPBAR --}}
+            @include('layouts.admin.topbar')
+
+            {{-- CONTENT --}}
+            <main class="p-6 bg-[#0f172a]">
                 @yield('content')
+            </main>
 
-            </div>
-
-            {{-- Panggil Footer Khusus Admin --}}
+            {{-- FOOTER --}}
             @include('layouts.admin.footer')
         </div>
 
     </div>
 
-    {{-- Script bawaan template --}}
-    @include('layouts.partials.vendor-scripts')
-    
-    {{-- Slot untuk script tambahan per halaman --}}
-    @yield('scripts')
+    {{-- SIDEBAR TOGGLE SCRIPT --}}
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+
+            const sidebar   = document.getElementById('admin-sidebar');
+            const wrapper   = document.getElementById('main-wrapper');
+            const toggleBtn = document.getElementById('sidebar-toggle');
+            const labels    = document.querySelectorAll('.sidebar-label');
+            const sections  = document.querySelectorAll('.sidebar-section-title');
+
+            if (!sidebar || !wrapper || !toggleBtn) return;
+
+            let collapsed = false;
+
+            toggleBtn.addEventListener('click', function () {
+                collapsed = !collapsed;
+
+                if (collapsed) {
+                    // Collapsed width
+                    sidebar.classList.remove('w-64');
+                    sidebar.classList.add('w-20');
+
+                    wrapper.classList.remove('ml-64');
+                    wrapper.classList.add('ml-20');
+
+                    // Hide text labels
+                    labels.forEach(el => el.classList.add('hidden'));
+                    sections.forEach(el => el.classList.add('hidden'));
+
+                } else {
+                    // Expanded width
+                    sidebar.classList.remove('w-20');
+                    sidebar.classList.add('w-64');
+
+                    wrapper.classList.remove('ml-20');
+                    wrapper.classList.add('ml-64');
+
+                    // Show text labels
+                    labels.forEach(el => el.classList.remove('hidden'));
+                    sections.forEach(el => el.classList.remove('hidden'));
+                }
+            });
+        });
+    </script>
 
 </body>
 </html>

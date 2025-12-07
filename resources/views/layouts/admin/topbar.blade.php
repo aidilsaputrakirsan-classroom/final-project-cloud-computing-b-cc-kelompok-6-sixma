@@ -1,42 +1,38 @@
-<header class="app-topbar">
-    <div class="container-fluid">
-        <div class="navbar-header">
-            <div class="d-flex align-items-center gap-2">
-                <div class="topbar-item">
-                    <button type="button" class="button-toggle-menu topbar-button">
-                        <iconify-icon icon="solar:hamburger-menu-outline" class="fs-24 align-middle"></iconify-icon>
-                    </button>
-                </div>
-                <div class="d-none d-md-block ms-2">
-                    <h5 class="mb-0 fw-semibold">Admin Panel</h5>
-                </div>
-            </div>
+<header
+    class="w-full bg-[#020617]/95 backdrop-blur border-b border-[#1e293b] px-6 py-4 flex items-center justify-between sticky top-0 z-20">
 
-            <div class="d-flex align-items-center gap-2">
-                <div class="topbar-item">
-                    <button type="button" class="topbar-button" id="light-dark-mode">
-                        <iconify-icon icon="solar:moon-outline" class="fs-22 align-middle light-mode"></iconify-icon>
-                        <iconify-icon icon="solar:sun-2-outline" class="fs-22 align-middle dark-mode"></iconify-icon>
-                    </button>
-                </div>
-                
-                <div class="dropdown topbar-item">
-                    <a type="button" class="topbar-button" id="page-header-user-dropdown" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                        <span class="d-flex align-items-center">
-                            <img class="rounded-circle" width="32" src="/images/users/avatar-1.jpg" alt="avatar">
-                        </span>
-                    </a>
-                    <div class="dropdown-menu dropdown-menu-end">
-                        <form method="POST" action="{{ route('logout') }}">
-                            @csrf
-                            <a class="dropdown-item text-danger" href="{{ route('logout') }}" onclick="event.preventDefault(); this.closest('form').submit();">
-                                <iconify-icon icon="solar:logout-3-outline" class="align-middle me-2 fs-18"></iconify-icon>
-                                <span class="align-middle">Logout</span>
-                            </a>
-                        </form>
-                    </div>
-                </div>
-            </div>
+    <div class="flex items-center gap-3">
+        {{-- SIDEBAR TOGGLE --}}
+        <button id="sidebar-toggle"
+                class="p-2 rounded-lg hover:bg-[#111827] transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500/60">
+            <iconify-icon icon="solar:hamburger-menu-outline" class="text-xl"></iconify-icon>
+        </button>
+
+        <div>
+            <h1 class="text-lg font-semibold text-white leading-tight">
+                Admin Panel
+            </h1>
+            <p class="text-xs text-gray-500">
+                System Overview
+            </p>
         </div>
     </div>
+
+    <div class="flex items-center gap-4">
+
+        {{-- MODE TOGGLE (dummy, bisa kamu isi logic nanti) --}}
+        <button id="light-dark-mode"
+                class="p-2 rounded-lg hover:bg-[#111827] transition-colors">
+            <iconify-icon icon="solar:moon-outline" class="text-xl"></iconify-icon>
+        </button>
+
+        {{-- AVATAR --}}
+        <button class="rounded-full overflow-hidden w-10 h-10 border border-[#334155] shadow-sm">
+            <img src="/images/users/avatar-1.jpg"
+                 class="w-full h-full object-cover"
+                 alt="Avatar Admin">
+        </button>
+
+    </div>
+
 </header>
