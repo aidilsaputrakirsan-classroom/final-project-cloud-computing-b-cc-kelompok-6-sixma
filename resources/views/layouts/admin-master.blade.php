@@ -2,27 +2,33 @@
 <html lang="id">
 <head>
     @include('layouts.partials.title-meta', ['title' => $title ?? 'Admin Panel'])
+
+    {{-- 🛑 KEMBALIKAN KE @vite STANDAR (Setelah NPM Bersih) --}}
     @vite(['resources/css/app.css', 'resources/js/app.js'])
+    
+    {{-- SCRIPT ICONIFY (Diletakkan di head agar ikon dimuat cepat) --}}
+    <script src="https://code.iconify.design/iconify-icon/1.0.8/iconify-icon.min.js"></script>
+
 </head>
 
-{{-- BODY: buat full dark --}}
-<body class="bg-[#0f172a] text-gray-200">
+{{-- BODY: Pastikan Dark Mode ter-apply --}}
+<body class="dark:bg-[#0f172a] dark:text-gray-200">
 
-    <div class="flex min-h-screen bg-[#0f172a]">
+    <div class="flex min-h-screen">
 
         {{-- SIDEBAR --}}
         @include('layouts.admin.sidebar')
 
-        {{-- MAIN WRAPPER --}}
+        {{-- MAIN WRAPPER (Tempat konten dimuat) --}}
         <div id="main-wrapper"
-             class="flex flex-col flex-1 ml-64 transition-all duration-300 bg-[#0f172a] min-h-screen">
+             class="flex flex-col flex-1 ml-64 transition-all duration-300 min-h-screen"> 
 
             {{-- TOPBAR --}}
             @include('layouts.admin.topbar')
 
-            {{-- CONTENT --}}
-            <main class="p-6 bg-[#0f172a]">
-                @yield('content')
+            {{-- CONTENT AREA: KUNCI UTAMA LAYOUT --}}
+            <main class="p-6 flex-1"> 
+                @yield('content') {{-- 🚨 INI PENTING --}}
             </main>
 
             {{-- FOOTER --}}
@@ -30,49 +36,34 @@
         </div>
 
     </div>
-
-    {{-- SIDEBAR TOGGLE SCRIPT --}}
+    
+    {{-- SCRIPTS: FILTER AKTIVITAS USER --}}
     <script>
         document.addEventListener('DOMContentLoaded', function () {
+            const filters = document.querySelectorAll('#activity-filters .filter-btn');
+            const activityList = document.getElementById('activity-list');
 
-            const sidebar   = document.getElementById('admin-sidebar');
-            const wrapper   = document.getElementById('main-wrapper');
-            const toggleBtn = document.getElementById('sidebar-toggle');
-            const labels    = document.querySelectorAll('.sidebar-label');
-            const sections  = document.querySelectorAll('.sidebar-section-title');
-
-            if (!sidebar || !wrapper || !toggleBtn) return;
-
-            let collapsed = false;
-
-            toggleBtn.addEventListener('click', function () {
-                collapsed = !collapsed;
-
-                if (collapsed) {
-                    // Collapsed width
-                    sidebar.classList.remove('w-64');
-                    sidebar.classList.add('w-20');
-
-                    wrapper.classList.remove('ml-64');
-                    wrapper.classList.add('ml-20');
-
-                    // Hide text labels
-                    labels.forEach(el => el.classList.add('hidden'));
-                    sections.forEach(el => el.classList.add('hidden'));
-
-                } else {
-                    // Expanded width
-                    sidebar.classList.remove('w-20');
-                    sidebar.classList.add('w-64');
-
-                    wrapper.classList.remove('ml-20');
-                    wrapper.classList.add('ml-64');
-
-                    // Show text labels
-                    labels.forEach(el => el.classList.remove('hidden'));
-                    sections.forEach(el => el.classList.remove('hidden'));
-                }
-            });
+            if (filters.length && activityList) {
+                filters.forEach(button => {
+                    button.addEventListener('click', () => {
+                        const filterType = button.getAttribute('data-filter');
+                        
+                        filters.forEach(btn => btn.classList.remove('bg-gray-100', 'dark:bg-[#111827]'));
+                        button.classList.add('bg-gray-100', 'dark:bg-[#111827]');
+                        
+                        activityList.querySelectorAll('tr').forEach(row => {
+                            const rowType = row.getAttribute('data-type');
+                            
+                            if (filterType === 'all' || rowType === filterType) {
+                                row.style.display = ''; 
+                            } else {
+                                row.style.display = 'none'; 
+                            }
+                        });
+                    });
+                });
+                document.querySelector('[data-filter="all"]').click();
+            }
         });
     </script>
 
