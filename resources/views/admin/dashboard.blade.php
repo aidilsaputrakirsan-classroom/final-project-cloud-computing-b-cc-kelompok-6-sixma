@@ -10,7 +10,7 @@
     </div>
 </div>
 
-{{-- WIDGETS STATISTIK --}}
+{{-- WIDGETS STATISTIK (DATA REAL) --}}
 <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
 
     {{-- Total User --}}
@@ -18,8 +18,10 @@
         <div class="flex justify-between items-center">
             <div>
                 <p class="text-gray-500 text-xs uppercase tracking-wide dark:text-gray-400">Total User</p>
-                <h2 class="text-3xl text-gray-900 font-bold mt-2 dark:text-white">12,450</h2>
-                <p class="text-xs mt-2 text-emerald-500 dark:text-emerald-400">↑ 3.2% sejak bulan lalu</p>
+                {{-- 🛑 DATA REAL --}}
+                <h2 class="text-3xl text-gray-900 font-bold mt-2 dark:text-white">{{ number_format($totalUsers ?? 0) }}</h2>
+                {{-- 🛑 DATA REAL --}}
+                <p class="text-xs mt-2 text-emerald-500 dark:text-emerald-400">↑ {{ $newUsersCount ?? 0 }} user baru bulan ini</p>
             </div>
             <div class="w-12 h-12 bg-purple-500/10 rounded-xl flex items-center justify-center">
                 <iconify-icon icon="solar:users-group-rounded-bold-duotone" class="text-2xl text-purple-600 dark:text-purple-400"></iconify-icon>
@@ -27,7 +29,7 @@
         </div>
     </div>
 
-    {{-- Admin Aktif --}}
+    {{-- Admin Aktif (Tetap Dummy/Hardcoded karena data real memerlukan logic Auth) --}}
     <div class="bg-white border border-gray-200 rounded-xl p-6 shadow-md dark:bg-[#020617] dark:border-[#1f2937]">
         <div class="flex justify-between items-center">
             <div>
@@ -41,13 +43,14 @@
         </div>
     </div>
 
-    {{-- Total Aktivitas --}}
+    {{-- Total Aktivitas (Postingan) --}}
     <div class="bg-white border border-gray-200 rounded-xl p-6 shadow-md dark:bg-[#020617] dark:border-[#1f2937]">
         <div class="flex justify-between items-center">
             <div>
-                <p class="text-gray-500 text-xs uppercase tracking-wide dark:text-gray-400">Total Aktivitas</p>
-                <h2 class="text-3xl text-gray-900 font-bold mt-2 dark:text-white">8,342</h2>
-                <p class="text-emerald-500 text-xs mt-2 dark:text-emerald-400">Hari ini: 142 aktivitas</p>
+                <p class="text-gray-500 text-xs uppercase tracking-wide dark:text-gray-400">Total Postingan</p>
+                {{-- 🛑 DATA REAL --}}
+                <h2 class="text-3xl text-gray-900 font-bold mt-2 dark:text-white">{{ number_format($totalActivities ?? 0) }}</h2>
+                <p class="text-emerald-500 text-xs mt-2 dark:text-emerald-400">Total Aktivitas Terkait</p>
             </div>
             <div class="w-12 h-12 bg-emerald-500/10 rounded-xl flex items-center justify-center">
                 <iconify-icon icon="solar:gallery-bold-duotone" class="text-2xl text-emerald-600 dark:text-emerald-400"></iconify-icon>
@@ -55,7 +58,7 @@
         </div>
     </div>
 
-    {{-- Average Time --}}
+    {{-- Average Time (Tetap Dummy) --}}
     <div class="bg-white border border-gray-200 rounded-xl p-6 shadow-md dark:bg-[#020617] dark:border-[#1f2937]">
         <div class="flex justify-between items-center">
             <div>
@@ -70,26 +73,11 @@
     </div>
 </div>
 
-{{-- LOG AKTIVITAS USER --}}
+{{-- LOG AKTIVITAS USER (DATA REAL DARI REPORTS) --}}
 <div class="mt-10 bg-white border border-gray-200 rounded-xl p-6 shadow-md dark:bg-[#020617] dark:border-[#1f2937]">
 
     <div class="flex items-center justify-between mb-4">
-        <h3 class="text-gray-900 text-lg font-semibold dark:text-white">Log Aktivitas User</h3>
-        <div id="activity-filters" class="space-x-2">
-            {{-- Tombol Filter --}}
-            <button data-filter="all" class="filter-btn px-3 py-1.5 rounded-lg border border-gray-300 text-gray-600 text-xs hover:bg-gray-50 dark:border-[#374151] dark:text-gray-300 dark:hover:bg-[#111827] bg-gray-100 dark:bg-[#111827]">
-                Semua
-            </button>
-            <button data-filter="report" class="filter-btn px-3 py-1.5 rounded-lg border border-red-500/30 text-red-600 text-xs bg-red-500/10 dark:text-red-400 dark:border-red-400/30">
-                Report
-            </button>
-            <button data-filter="comment" class="filter-btn px-3 py-1.5 rounded-lg border border-sky-500/30 text-sky-600 text-xs bg-sky-500/10 dark:text-sky-400 dark:border-sky-400/30">
-                Comment
-            </button>
-            <button data-filter="like" class="filter-btn px-3 py-1.5 rounded-lg border border-pink-500/30 text-pink-600 text-xs bg-pink-500/10 dark:text-pink-400 dark:border-pink-400/30">
-                Like
-            </button>
-        </div>
+        <h3 class="text-gray-900 text-lg font-semibold dark:text-white">Log Aktivitas User (Reports)</h3>
     </div>
 
     {{-- KONTEN TABEL --}}
@@ -107,50 +95,31 @@
             </thead>
             
             <tbody id="activity-list" class="divide-y divide-gray-100 dark:divide-[#111827]">
-                {{-- ITEM 1: Report (Dummy Data) --}}
+                
+                {{-- 🛑 LOOPING DATA REPORTS REAL --}}
+                @forelse($activityLogs as $log)
                 <tr data-type="report" class="hover:bg-gray-50/70 dark:hover:bg-[#020617]/70">
-                    <td class="p-3 text-xs text-gray-400">2 menit lalu</td>
+                    <td class="p-3 text-xs text-gray-400">{{ \Carbon\Carbon::parse($log['created_at'])->diffForHumans() }}</td>
                     <td class="p-3 flex items-center gap-2">
-                        <div class="w-8 h-8 rounded-full bg-red-500/20 flex items-center justify-center text-xs font-semibold text-red-600 dark:text-red-400">AR</div>
-                        Ahmad Rizki
+                        <div class="w-8 h-8 rounded-full bg-red-500/20 flex items-center justify-center text-xs font-semibold text-red-600 dark:text-red-400">{{ strtoupper(substr($log['users']['name'] ?? 'U', 0, 1)) }}</div>
+                        {{ $log['users']['name'] ?? 'User Deleted' }}
                     </td>
                     <td class="p-3"><span class="bg-red-500/10 text-red-600 dark:text-red-400 px-2 py-1 rounded text-xs font-semibold">Report</span></td>
-                    <td class="p-3 text-xs text-gray-600 dark:text-gray-400">Konten Tidak Pantas: "Postingan ini melanggar..."</td>
-                    <td class="p-3 text-center text-indigo-500 text-xs">#2451</td>
+                    <td class="p-3 text-xs text-gray-600 dark:text-gray-400">{{ $log['reason'] ?? 'Konten dilaporkan' }}</td>
+                    <td class="p-3 text-center text-indigo-500 text-xs">#{{ $log['image_id'] }}</td>
                     <td class="p-3 text-center">
-                        <button class="px-3 py-1.5 rounded-lg bg-indigo-500 text-white text-xs hover:bg-indigo-600 transition">Lihat</button>
+                        {{-- MENGGUNAKAN ID ASLI DARI LOG --}}
+                        <a href="{{ route('admin.post.show', ['post' => $log['image_id']]) ?? '#' }}" 
+                           class="px-3 py-1.5 rounded-lg bg-indigo-500 text-white text-xs hover:bg-indigo-600 transition">
+                            Lihat
+                        </a>
                     </td>
                 </tr>
-
-                {{-- ITEM 2: Comment (Dummy Data) --}}
-                <tr data-type="comment" class="hover:bg-gray-50/70 dark:hover:bg-[#020617]/70">
-                    <td class="p-3 text-xs text-gray-400">5 menit lalu</td>
-                    <td class="p-3 flex items-center gap-2">
-                        <div class="w-8 h-8 rounded-full bg-sky-500/20 flex items-center justify-center text-xs font-semibold text-sky-600 dark:text-sky-400">SN</div>
-                        Siti Nurhaliza
-                    </td>
-                    <td class="p-3"><span class="bg-sky-500/10 text-sky-600 dark:text-sky-400 px-2 py-1 rounded text-xs font-semibold">Comment</span></td>
-                    <td class="p-3 text-xs text-gray-600 dark:text-gray-400">"Karya yang sangat menginspirasi! Saya suka..."</td>
-                    <td class="p-3 text-center text-indigo-500 text-xs">#2448</td>
-                    <td class="p-3 text-center">
-                        <button class="px-3 py-1.5 rounded-lg bg-indigo-500 text-white text-xs hover:bg-indigo-600 transition">Lihat</button>
-                    </td>
+                @empty
+                <tr>
+                    <td colspan="6" class="p-4 text-center text-gray-500">Tidak ada aktivitas report baru saat ini.</td>
                 </tr>
-                
-                {{-- ITEM 3: Like (Dummy Data) --}}
-                <tr data-type="like" class="hover:bg-gray-50/70 dark:hover:bg-[#020617]/70">
-                    <td class="p-3 text-xs text-gray-400">8 menit lalu</td>
-                    <td class="p-3 flex items-center gap-2">
-                        <div class="w-8 h-8 rounded-full bg-pink-500/20 flex items-center justify-center text-xs font-semibold text-pink-600 dark:text-pink-400">BS</div>
-                        Budi Santoso
-                    </td>
-                    <td class="p-3"><span class="bg-pink-500/10 text-pink-600 dark:text-pink-400 px-2 py-1 rounded text-xs font-semibold">Like</span></td>
-                    <td class="p-3 text-xs text-gray-600 dark:text-gray-400">Menyukai postingan Anda</td>
-                    <td class="p-3 text-center text-indigo-500 text-xs">#2448</td>
-                    <td class="p-3 text-center">
-                        <button class="px-3 py-1.5 rounded-lg bg-indigo-500 text-white text-xs hover:bg-indigo-600 transition">Lihat</button>
-                    </td>
-                </tr>
+                @endforelse
 
             </tbody>
         </table>

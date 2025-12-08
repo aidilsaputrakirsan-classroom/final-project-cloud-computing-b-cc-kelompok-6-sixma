@@ -4,86 +4,90 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
-use App\Models\User;
-use App\Models\Image;  
-use App\Models\Report; 
-use App\Models\Comment; // <--- Tambahkan ini
-use App\Models\Like;    // <--- Tambahkan ini
-use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Auth;
 use Carbon\Carbon;
 
 class AdminDashboardController extends Controller
 {
+    /**
+     * Mengambil JWT Admin (Service Key atau JWT user dengan role admin)
+     * Karena dashboard biasanya butuh data semua user, Service Key lebih disarankan.
+     * Jika tidak ada Service Key, kita akan menggunakan Anon Key.
+     */
+    private function getSupabaseHeaders()
+    {
+        // Menggunakan Anon Key untuk request COUNT, yang umumnya diperbolehkan
+        $key = env('SUPABASE_ANON_KEY');
+        return [
+            'apikey' => $key,
+            'Authorization' => 'Bearer ' . $key,
+            'Content-Type' => 'application/json',
+        ];
+    }
+    
+    // Asumsi: Kamu akan membuat Admin Dashboard menggunakan Service Key atau JWT Admin
+    private function getServiceHeaders() 
+    {
+        // Gunakan Service Key untuk akses data level tinggi jika ada
+        $key = env('SUPABASE_SERVICE_KEY') ?? env('SUPABASE_ANON_KEY'); 
+        return [
+            'apikey' => env('SUPABASE_ANON_KEY'),
+            'Authorization' => 'Bearer ' . $key,
+            'Content-Type' => 'application/json',
+        ];
+    }
+
     public function index()
     {
-        // 1. STATISTIK UTAMA
-        $totalUsers = User::count();
-        $usersLastMonth = User::where('created_at', '<=', Carbon::now()->subMonth())->count();
-        $userGrowth = ($usersLastMonth > 0) ? (($totalUsers - $usersLastMonth) / $usersLastMonth) * 100 : 0;
+        $headers = $this->getServiceHeaders();
+        $base_url = env('SUPABASE_REST_URL');
 
-        $onlineUsers = DB::table('sessions')
-            ->whereNotNull('user_id')
-            ->where('last_activity', '>=', Carbon::now()->subMinutes(5)->timestamp)
-            ->distinct('user_id')
-            ->count('user_id');
-
-        $totalImages = Image::count();
-        
-        // Data Pending Reports untuk Widget
-        $pendingReportsCount = 0;
-        $criticalReports = 0;
-        try {
-            $pendingReportsCount = Report::where('status', 'pending')->count();
-            $criticalReports = Report::where('status', 'pending')->count(); 
-        } catch (\Exception $e) {}
-
-
-        // 2. LOG AKTIVITAS TERPUSAT (REPORTS + COMMENTS + LIKES)
-        $activities = collect(); // Koleksi kosong awal
-
-        try {
-            // A. Ambil Data REPORTS
-            $reports = Report::with('user')->latest()->take(10)->get()->map(function($item) {
-                $item->type = 'report'; // Tandai sebagai report
-                return $item;
-            });
+        // 🛑 Gunakan Cache untuk statistik agar Dashboard cepat dimuat
+        $stats = Cache::remember('admin_stats', 60, function () use ($headers, $base_url) {
             
-            // B. Ambil Data COMMENTS
-            $comments = Comment::with(['user', 'image'])->latest()->take(10)->get()->map(function($item) {
-                $item->type = 'comment'; // Tandai sebagai comment
-                return $item;
-            });
+            // 1. Total Users (Count semua user, RLS harus diabaikan/diizinkan)
+            $usersRes = Http::withHeaders($headers)
+                ->withoutVerifying()
+                ->get($base_url . '/users?select=count');
+            $totalUsers = $usersRes->successful() ? (int)$usersRes->header('Content-Range') : 0;
+            
+            // 2. Total Posts/Aktivitas (Count images)
+            $imagesRes = Http::withHeaders($headers)
+                ->withoutVerifying()
+                ->get($base_url . '/images?select=count');
+            $totalActivities = $imagesRes->successful() ? (int)$imagesRes->header('Content-Range') : 0;
+            
+            // 3. User yang terdaftar bulan ini (Contoh untuk growth)
+            $lastMonth = Carbon::now()->subMonth()->toIso8601String();
+            $newUsersRes = Http::withHeaders($headers)
+                ->withoutVerifying()
+                ->get($base_url . "/users?select=count&created_at=gte.$lastMonth");
+            $newUsersCount = $newUsersRes->successful() ? (int)$newUsersRes->header('Content-Range') : 0;
+            
+            // 4. Log Aktivitas (Contoh data dari Reports, Comments, Likes - Gabungan)
+            // *Ini sangat kompleks di REST API. Kita akan simulasikan pengambilan 10 aktivitas terakhir*
+            // Kita akan ambil data Reports sebagai contoh Log Aktivitas:
+            $reportsRes = Http::withHeaders($headers)
+                ->withoutVerifying()
+                ->get($base_url . '/reports?select=*,images:image_id(title),users:user_id(name)&order=created_at.desc&limit=10');
+            $activityLogs = $reportsRes->successful() ? $reportsRes->json() : [];
 
-            // C. Ambil Data LIKES
-            $likes = Like::with(['user', 'image'])->latest()->take(10)->get()->map(function($item) {
-                $item->type = 'like'; // Tandai sebagai like
-                return $item;
-            });
+            return [
+                'totalUsers' => $totalUsers,
+                'totalActivities' => $totalActivities,
+                'newUsersCount' => $newUsersCount,
+                'activityLogs' => $activityLogs
+            ];
+        });
 
-            // D. GABUNGKAN & URUTKAN
-            // Gabung semua, urutkan descending by created_at, ambil 10 teratas
-            $activities = $reports->concat($comments)->concat($likes)
-                ->sortByDesc('created_at')
-                ->take(10);
-
-        } catch (\Exception $e) {
-            // Fallback jika tabel belum lengkap
-        }
-
-        // 3. USER BARU
-        $newUsers = User::latest()
-        ->take(20) 
-        ->get();
-
-        return view('admin.dashboard', compact(
-            'totalUsers',
-            'userGrowth',
-            'onlineUsers',
-            'totalImages',
-            'pendingReportsCount',
-            'criticalReports',
-            'activities', // <--- Variabel baru yang dikirim ke view (menggantikan recentActivities)
-            'newUsers'
-        ));
+        return view('admin.dashboard', [
+            'totalUsers' => $stats['totalUsers'],
+            'totalActivities' => $stats['totalActivities'],
+            'newUsersCount' => $stats['newUsersCount'],
+            'activityLogs' => $stats['activityLogs'], // Ini log aktivitas real dari tabel reports
+        ]);
     }
 }

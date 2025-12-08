@@ -1,7 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\Admin\AdminDashboardController; // Pastikan ini ada
+use App\Http\Controllers\Admin\AdminDashboardController;
 use App\Http\Controllers\ImageController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
@@ -11,11 +11,27 @@ use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\LikeController; 
 
+
 /*
 |--------------------------------------------------------------------------
 | Web Routes
 |--------------------------------------------------------------------------
 */
+
+// ========================================================================
+// 🛑 5. ADMIN ROUTES (DEFINISI EKSPLISIT DAN PRIORITAS TERTINGGI)
+// ========================================================================
+
+// Route Dashboard (Harus login)
+Route::get('/admin/dashboard', [AdminDashboardController::class, 'index'])
+    ->middleware('auth') 
+    ->name('admin.dashboard');
+
+// 🛑 Route Detail Post Admin (Panggil adminShow)
+Route::get('/admin/post/{post}', [ImageController::class, 'adminShow']) 
+    ->middleware('auth') 
+    ->name('admin.post.show'); 
+
 
 // ========================================================================
 // 1. HOMEPAGE (Landing Page Artrium)
@@ -36,15 +52,14 @@ Route::middleware('guest')->group(function () {
     // LOGIN
     Route::get('login', [AuthenticatedSessionController::class, 'create'])->name('login');
     Route::post('login', [AuthenticatedSessionController::class, 'store']);
-    
 });
 
-// LOGOUT
+// LOGOUT (POST request)
 Route::post('logout', [AuthenticatedSessionController::class, 'destroy'])->name('logout');
 
 
 // ========================================================================
-// 3. PROTECTED ROUTES with Middleware (Hanya untuk User yang Sudah Login)
+// 3. PROTECTED ROUTES (Middleware 'auth')
 // ========================================================================
 
 Route::middleware(['auth', 'role:user'])->group(function () {
@@ -52,27 +67,26 @@ Route::middleware(['auth', 'role:user'])->group(function () {
     // Rute Profile Saya
     Route::get('/profile', [ProfileController::class, 'showProfile'])->name('profile.show');
 
-    // CRUD GAMBAR
+    // CRUD GAMBAR (Hanya pemilik yang bisa)
     Route::get('images/create', [ImageController::class, 'create'])->name('images.create');
     Route::post('images', [ImageController::class, 'store'])->name('images.store');
-
     Route::get('images/{id}/edit', [ImageController::class, 'edit'])->name('images.edit');
     Route::patch('images/{id}', [ImageController::class, 'update'])->name('images.update');
     Route::delete('images/{id}', [ImageController::class, 'destroy'])->name('images.destroy');
 
     // RUTE KOMENTAR
-    Route::post('images/{image}/comments', [CommentController::class, 'store'])
-        ->name('comments.store');
-    Route::delete('comments/{id}', [CommentController::class, 'destroy'])
-        ->name('comments.destroy');
+    Route::post('images/{image}/comments', [CommentController::class, 'store'])->name('comments.store');
+    Route::delete('comments/{id}', [CommentController::class, 'destroy'])->name('comments.destroy');
 
     // RUTE PELAPORAN (REPORT)
-    Route::post('images/{image}/report', [ReportController::class, 'store'])
-        ->name('reports.store');
+    Route::post('images/{image}/report', [ReportController::class, 'store'])->name('reports.store');
 
     // RUTE LIKES 
-    Route::post('images/{image}/like', [LikeController::class, 'toggle'])
-        ->name('likes.toggle');
+    Route::post('images/{image}/like', [LikeController::class, 'toggle'])->name('likes.toggle');
+
+    // Rute Notifikasi
+    Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications');
+    Route::post('/notifications/read', [NotificationController::class, 'markAllRead'])->name('notifications.read');
 });
 
 
@@ -85,25 +99,3 @@ Route::get('/explore', [ImageController::class, 'index'])->name('gallery.index')
 
 // Detail gambar (Rute Dinamis)
 Route::get('images/{id}', [ImageController::class, 'show'])->name('images.show');
-
-// Notifikasi
-Route::middleware('auth')->get(
-    '/notifications',
-    [NotificationController::class, 'index']
-)->name('notifications');
-
-Route::middleware('auth')
-    ->post('/notifications/read', [NotificationController::class, 'markAllRead'])
-    ->name('notifications.read');
-
-
-
-
-// ========================================================================
-// 5. ADMIN ROUTES
-// ========================================================================
-
-
-    Route::get('/admin/dashboard', [AdminDashboardController::class, 'index'])
-        ->name('admin.dashboard');
-
