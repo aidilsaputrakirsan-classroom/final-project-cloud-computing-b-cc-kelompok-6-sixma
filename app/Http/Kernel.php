@@ -48,7 +48,7 @@ class Kernel extends HttpKernel
     /**
      * The application's route middleware aliases.
      */
-   protected $middlewareAliases = [
+protected $middlewareAliases = [
     'auth' => \Illuminate\Auth\Middleware\Authenticate::class,
     'auth.basic' => \Illuminate\Auth\Middleware\AuthenticateWithBasicAuth::class,
     'bindings' => \Illuminate\Routing\Middleware\SubstituteBindings::class,
@@ -59,8 +59,10 @@ class Kernel extends HttpKernel
     'throttle' => \Illuminate\Routing\Middleware\ThrottleRequests::class,
     'verified' => \Illuminate\Auth\Middleware\EnsureEmailIsVerified::class,
 
-    // ✔ MASUKKAN ROLE DI SINI
-    'role' => \App\Http\Middleware\RoleMiddleware::class,
+    // Masukkan DI SINI, tanpa koma terakhir
+    'role' => \App\Http\Middleware\RoleMiddleware::class
 ];
+
     
 }
+
