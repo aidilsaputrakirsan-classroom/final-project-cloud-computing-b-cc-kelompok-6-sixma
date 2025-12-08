@@ -3,27 +3,33 @@
 namespace App\Http\Middleware;
 
 use Closure;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use App\Models\Role; // penting!
 
 class RoleMiddleware
 {
-    public function handle($request, Closure $next, $roleName)
+    public function handle(Request $request, Closure $next, $roleName = null)
     {
         if (!Auth::check()) {
-            return redirect('/login');
+            return redirect('/login')->with('error', 'Silakan login terlebih dahulu.');
         }
 
         $user = Auth::user();
 
-        // Jika user tidak punya relasi role
-        if (!$user->role) {
-            return redirect('/')->withErrors(['error' => 'Role user tidak ditemukan.']);
+        // ✅ Karena role adalah STRING di kolom users.role
+        $userRole = $user->role ?? null;
+
+        if (!$userRole) {
+            return redirect('/explore')->with('error', 'Role user tidak ditemukan.');
         }
 
-        // Apakah nama role cocok?
-        if ($user->role->name !== $roleName) {
-            return redirect('/')->withErrors(['error' => 'Akses ditolak.']);
+        if ($roleName && $userRole !== $roleName) {
+            // Redirect sesuai role user
+            if ($userRole === 'admin') {
+                return redirect()->route('admin.dashboard')->with('error', 'Anda sudah di area admin.');
+            }
+            
+            return redirect('/explore')->with('error', 'Akses ditolak. Halaman ini hanya untuk role: ' . $roleName);
         }
 
         return $next($request);

@@ -26,7 +26,7 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
-        'role',
+        'role_id',
         'supabase_uuid',
         'supabase_jwt',    // <--- FIX KRITIS: WAJIB DITAMBAHKAN!
         'remember_token',
@@ -56,9 +56,9 @@ class User extends Authenticatable
             // Kita tidak perlu mencantumkan JWT di casts jika sudah bertipe string di DB
         ];
     }
+public function role()
+{
+    return $this->belongsTo(Role::class, 'role_id');
+}
 
-    public function role()
-    {
-        return $this->belongsTo(Role::class);
-    }
 }
