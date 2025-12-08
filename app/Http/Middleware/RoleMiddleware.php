@@ -11,24 +11,25 @@ class RoleMiddleware
     public function handle(Request $request, Closure $next, $roleName = null)
     {
         if (!Auth::check()) {
-            return redirect('/login');
+            return redirect('/login')->with('error', 'Silakan login terlebih dahulu.');
         }
 
         $user = Auth::user();
 
-        // ✅ Cek apakah role adalah object (relasi) atau string langsung
-        if (is_object($user->role)) {
-            $userRole = $user->role->name ?? null;
-        } else {
-            $userRole = $user->role ?? null;
-        }
+        // ✅ Karena role adalah STRING di kolom users.role
+        $userRole = $user->role ?? null;
 
         if (!$userRole) {
-            return abort(403, 'Role user tidak ditemukan.');
+            return redirect('/explore')->with('error', 'Role user tidak ditemukan.');
         }
 
         if ($roleName && $userRole !== $roleName) {
-            return abort(403, 'Akses ditolak untuk role ini.');
+            // Redirect sesuai role user
+            if ($userRole === 'admin') {
+                return redirect()->route('admin.dashboard')->with('error', 'Anda sudah di area admin.');
+            }
+            
+            return redirect('/explore')->with('error', 'Akses ditolak. Halaman ini hanya untuk role: ' . $roleName);
         }
 
         return $next($request);

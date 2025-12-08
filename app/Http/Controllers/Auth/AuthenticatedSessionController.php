@@ -64,7 +64,7 @@ class AuthenticatedSessionController extends Controller
             }
 
             // 2) Ambil user lokal berdasarkan UUID Supabase
-            $user = User::with('role')->where('id', $supabaseUuid)->first();
+            $user = User::where('id', $supabaseUuid)->first();
 
             if (!$user) {
                 return back()->withErrors([
@@ -93,19 +93,31 @@ class AuthenticatedSessionController extends Controller
             |--------------------------------------------------------------------------
             */
 
-           $roleName = $user->role->name ?? 'user';
+            // ✅ Karena role adalah STRING di kolom users.role
+         // Setelah user ditemukan, sebelum redirect
+$roleName = $user->role ?? 'user';
+
+// ✅ TAMBAHKAN INI UNTUK DEBUG
+Log::info('Login Debug', [
+    'user_id' => $user->id,
+    'email' => $user->email,
+    'role_column' => $user->role,
+    'role_id_column' => $user->role_id ?? 'tidak ada',
+    'detected_role' => $roleName,
+]);
 
 // Jika ADMIN → arahkan ke dashboard admin
 if ($roleName === 'admin') {
+    Log::info('Redirecting to admin dashboard');
     return redirect()
         ->route('admin.dashboard')
         ->with('success', 'Selamat datang, Admin!');
 }
 
-// Jika USER → arahkan ke explore
+Log::info('Redirecting to explore');
 return redirect('/explore')
     ->with('success', 'Selamat datang kembali!');
-
+    
         } catch (ConnectException $e) {
 
             if (str_contains($e->getMessage(), 'SSL certificate problem')) {

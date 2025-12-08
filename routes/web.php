@@ -11,27 +11,11 @@ use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\LikeController; 
 
-
 /*
 |--------------------------------------------------------------------------
 | Web Routes
 |--------------------------------------------------------------------------
 */
-
-// ========================================================================
-// 🛑 5. ADMIN ROUTES (DEFINISI EKSPLISIT DAN PRIORITAS TERTINGGI)
-// ========================================================================
-
-// Route Dashboard (Harus login)
-Route::get('/admin/dashboard', [AdminDashboardController::class, 'index'])
-    ->middleware('auth') 
-    ->name('admin.dashboard');
-
-// 🛑 Route Detail Post Admin (Panggil adminShow)
-Route::get('/admin/post/{post}', [ImageController::class, 'adminShow']) 
-    ->middleware('auth') 
-    ->name('admin.post.show'); 
-
 
 // ========================================================================
 // 1. HOMEPAGE (Landing Page Artrium)
@@ -59,12 +43,36 @@ Route::post('logout', [AuthenticatedSessionController::class, 'destroy'])->name(
 
 
 // ========================================================================
-// 3. PROTECTED ROUTES (Middleware 'auth')
+// 3. ADMIN ROUTES (Khusus Role Admin) 🔥 PRIORITAS TERTINGGI
+// ========================================================================
+
+
+Route::middleware(['auth', 'role:admin'])
+    ->prefix('admin')
+    ->name('admin.')
+    ->group(function () {
+
+        // Dashboard Admin
+        Route::get('/dashboard', [AdminDashboardController::class, 'index'])
+            ->name('dashboard');
+
+        // 🔄 Clear cache dashboard (untuk tombol Refresh Data)
+        Route::post('/dashboard/clear-cache', [AdminDashboardController::class, 'clearCache'])
+            ->name('dashboard.clear-cache');
+
+        // Detail Post Admin
+        Route::get('/post/{post}', [ImageController::class, 'adminShow'])
+            ->name('post.show');
+    });
+
+
+// ========================================================================
+// 4. USER ROUTES (Khusus Role User)
 // ========================================================================
 
 Route::middleware(['auth', 'role:user'])->group(function () {
 
-    // Rute Profile Saya
+    // Profile User
     Route::get('/profile', [ProfileController::class, 'showProfile'])->name('profile.show');
 
     // CRUD GAMBAR (Hanya pemilik yang bisa)
@@ -74,28 +82,28 @@ Route::middleware(['auth', 'role:user'])->group(function () {
     Route::patch('images/{id}', [ImageController::class, 'update'])->name('images.update');
     Route::delete('images/{id}', [ImageController::class, 'destroy'])->name('images.destroy');
 
-    // RUTE KOMENTAR
+    // KOMENTAR
     Route::post('images/{image}/comments', [CommentController::class, 'store'])->name('comments.store');
     Route::delete('comments/{id}', [CommentController::class, 'destroy'])->name('comments.destroy');
 
-    // RUTE PELAPORAN (REPORT)
+    // PELAPORAN
     Route::post('images/{image}/report', [ReportController::class, 'store'])->name('reports.store');
 
-    // RUTE LIKES 
+    // LIKES 
     Route::post('images/{image}/like', [LikeController::class, 'toggle'])->name('likes.toggle');
 
-    // Rute Notifikasi
+    // NOTIFIKASI
     Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications');
     Route::post('/notifications/read', [NotificationController::class, 'markAllRead'])->name('notifications.read');
 });
 
 
 // ========================================================================
-// 4. PUBLIC ROUTES (Akses Pengguna Umum)
+// 5. PUBLIC ROUTES (Akses Pengguna Umum)
 // ========================================================================
 
-// Galeri publik (Explore)
+// Galeri publik (Explore) - Bisa diakses semua orang (guest & auth)
 Route::get('/explore', [ImageController::class, 'index'])->name('gallery.index');
 
-// Detail gambar (Rute Dinamis)
+// Detail gambar - Bisa diakses semua orang
 Route::get('images/{id}', [ImageController::class, 'show'])->name('images.show');
