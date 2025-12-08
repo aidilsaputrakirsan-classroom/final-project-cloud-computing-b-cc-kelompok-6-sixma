@@ -8,10 +8,9 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Str;
-use GuzzleHttp\Exception\ConnectException;
 use Illuminate\Support\Facades\Cookie;
+use GuzzleHttp\Exception\ConnectException;
 
 class AuthenticatedSessionController extends Controller
 {
@@ -22,17 +21,17 @@ class AuthenticatedSessionController extends Controller
 
     public function store(Request $request)
     {
-        // Validasi input login
+        // Validasi login
         $request->validate([
             'email' => ['required', 'email'],
             'password' => ['required'],
         ]);
 
         try {
-            // URL login Supabase
+            // Supabase Login URL
             $signInUrl = env('SUPABASE_URL') . '/auth/v1/token?grant_type=password';
 
-            // 1. Login ke Supabase Auth
+            // 1) Login ke Supabase Auth
             $response = Http::timeout(20)
                 ->withHeaders([
                     'apikey' => env('SUPABASE_ANON_KEY'),
@@ -44,11 +43,10 @@ class AuthenticatedSessionController extends Controller
                     'password' => $request->password,
                 ]);
 
-            // Jika gagal login
+            // Jika login gagal
             if (!$response->successful()) {
                 $errorBody = $response->json();
-                $errorMessage = $errorBody['msg']
-                    ?? 'Login gagal. Email atau password salah, atau akun belum terverifikasi.';
+                $errorMessage = $errorBody['msg'] ?? 'Login gagal. Email atau password salah.';
 
                 return back()->withErrors([
                     'email' => $errorMessage,
@@ -62,19 +60,19 @@ class AuthenticatedSessionController extends Controller
             $userName     = $supabaseData['user']['user_metadata']['name'] ?? 'Pengguna';
 
             if (!$supabaseJwt || !$supabaseUuid) {
-                return back()->withErrors(['error' => 'Data otentikasi dari Supabase tidak lengkap.']);
+                return back()->withErrors(['error' => 'Data login dari Supabase tidak lengkap.']);
             }
 
-            // 2. Ambil user lokal dari database
-            $user = User::with('role')->where('id', $supabaseUuid)->first();
+            // 2) Ambil user lokal berdasarkan UUID Supabase
+            $user = User::where('id', $supabaseUuid)->first();
 
             if (!$user) {
                 return back()->withErrors([
-                    'email' => 'Akun tidak ditemukan di database lokal. Harap hubungi admin.',
-                ])->onlyInput('email');
+                    'email' => 'Akun tidak ditemukan di database lokal. Hubungi admin.',
+                ]);
             }
 
-            // Update informasi
+            // Update user info
             $user->update([
                 'remember_token' => Str::random(60),
                 'supabase_uuid'  => $supabaseUuid,
@@ -85,52 +83,72 @@ class AuthenticatedSessionController extends Controller
             // Simpan JWT ke cookie
             Cookie::queue('supabase_jwt', $supabaseJwt, 60);
 
-            // Login Laravel
+            // Login Laravel session
             Auth::login($user, $request->boolean('remember'));
             $request->session()->regenerate();
 
-            // 3. CEK ROLE DARI RELASI
-            $roleName = $user->role->name ?? 'user';
+            /*
+            |--------------------------------------------------------------------------
+            | REDIRECT SESUAI ROLE
+            |--------------------------------------------------------------------------
+            */
 
-            if ($roleName === 'admin') {
-                return redirect('/dashboard-admin')
-                    ->with('success', 'Selamat datang, Admin!');
-            }
+            // ✅ Karena role adalah STRING di kolom users.role
+         // Setelah user ditemukan, sebelum redirect
+$roleName = $user->role ?? 'user';
 
-            return redirect('/explore')
-                ->with('success', 'Selamat datang kembali, ' . $user->name . '!');
+// ✅ TAMBAHKAN INI UNTUK DEBUG
+Log::info('Login Debug', [
+    'user_id' => $user->id,
+    'email' => $user->email,
+    'role_column' => $user->role,
+    'role_id_column' => $user->role_id ?? 'tidak ada',
+    'detected_role' => $roleName,
+]);
+
+// Jika ADMIN → arahkan ke dashboard admin
+if ($roleName === 'admin') {
+    Log::info('Redirecting to admin dashboard');
+    return redirect()
+        ->route('admin.dashboard')
+        ->with('success', 'Selamat datang, Admin!');
+}
+
+Log::info('Redirecting to explore');
+return redirect('/explore')
+    ->with('success', 'Selamat datang kembali!');
+    
         } catch (ConnectException $e) {
 
             if (str_contains($e->getMessage(), 'SSL certificate problem')) {
                 return back()->withErrors([
-                    'error' => 'Gagal koneksi: Masalah Sertifikat SSL (cURL).'
+                    'error' => 'Masalah SSL saat menghubungkan ke Supabase.'
                 ]);
             }
 
             return back()->withErrors([
-                'error' => 'Gagal koneksi ke server Supabase. Periksa jaringan atau file .env.'
+                'error' => 'Gagal terhubung ke Supabase. Cek koneksi atau file .env.'
             ]);
+
         } catch (\Exception $e) {
 
-            Log::error('Gagal login: ' . $e->getMessage());
+            Log::error('Login error: ' . $e->getMessage());
 
             return back()->withErrors([
-                'error' => 'Gagal login: ' . $e->getMessage()
+                'error' => 'Terjadi kesalahan: ' . $e->getMessage()
             ]);
         }
     }
 
-
-    public function destroy(Request $request): RedirectResponse
+    public function destroy(Request $request)
     {
         Cookie::queue(Cookie::forget('supabase_jwt'));
 
         Auth::guard('web')->logout();
 
         $request->session()->invalidate();
-
         $request->session()->regenerateToken();
 
-        return redirect('/');
+        return redirect('/login');
     }
 }

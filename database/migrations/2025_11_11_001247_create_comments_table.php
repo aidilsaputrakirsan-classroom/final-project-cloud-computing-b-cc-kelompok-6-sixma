@@ -6,25 +6,37 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
+    /**
+     * Run the migrations.
+     */
     public function up(): void
     {
         Schema::create('comments', function (Blueprint $table) {
             $table->id();
             
-            // Konten komentar
-            $table->text('content'); 
-
-            // Foreign Key ke tabel images
-            // Kolom image_id (asumsi images.id masih integer standard)
-            $table->foreignId('image_id')->constrained('images')->onDelete('cascade');
-
-            // 🚨 PERBAIKAN: Foreign Key ke tabel users (user_id) harus menggunakan UUID
-            $table->foreignUuid('user_id')->constrained('users')->onDelete('cascade');
-
+            // Relasi ke User (Siapa yang berkomentar)
+            $table->foreignId('user_id')->constrained()->onDelete('cascade');
+            
+            // Relasi ke Post (Postingan mana yang dikomentari)
+            $table->foreignId('post_id')->constrained()->onDelete('cascade');
+            
+            // Isi Komentar
+            $table->text('content');
+            
+            // Fitur Reply/Balasan Komentar (Self-referencing relationship)
+            // Jika null = komentar utama. Jika ada isinya = balasan untuk komentar lain.
+            $table->foreignId('parent_id')->nullable()->constrained('comments')->onDelete('cascade');
+            
+            // Penanda status baca untuk notifikasi pemilik post
+            $table->boolean('is_read')->default(false);
+            
             $table->timestamps();
         });
     }
 
+    /**
+     * Reverse the migrations.
+     */
     public function down(): void
     {
         Schema::dropIfExists('comments');
