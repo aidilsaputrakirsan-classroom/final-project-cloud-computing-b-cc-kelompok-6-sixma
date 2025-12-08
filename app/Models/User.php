@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+// Hapus baris: use App\Models\Role; <-- Kita tidak memerlukannya karena menggunakan FQCN di bawah
 
 class User extends Authenticatable
 {
@@ -28,7 +29,7 @@ class User extends Authenticatable
         'password',
         'role',
         'supabase_uuid',
-        'supabase_jwt',    // <--- FIX KRITIS: WAJIB DITAMBAHKAN!
+        'supabase_jwt',     
         'remember_token',
     ];
 
@@ -53,12 +54,13 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'supabase_uuid' => 'string',
-            // Kita tidak perlu mencantumkan JWT di casts jika sudah bertipe string di DB
         ];
     }
 
     public function role()
     {
-        return $this->belongsTo(Role::class);
+        // PERBAIKAN: Menggunakan Fully Qualified Class Name (FQCN) untuk memastikan Laravel 
+        // menemukan Model Role terlepas dari masalah Autoloading.
+        return $this->belongsTo(\App\Models\Role::class); 
     }
 }

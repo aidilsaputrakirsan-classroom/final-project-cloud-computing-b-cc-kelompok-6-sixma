@@ -10,6 +10,8 @@ class Role extends Model
 
     public function users()
     {
-        return $this->hasMany(User::class);
+        // PERBAIKAN: Menggunakan Fully Qualified Class Name (FQCN) untuk memastikan Laravel 
+        // menemukan Model User dari namespace App\Models.
+        return $this->hasMany(\App\Models\User::class); 
     }
 }
